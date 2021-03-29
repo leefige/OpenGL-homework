@@ -4,6 +4,7 @@
 
 #version 330 core
 
+// each face is of one color rather than interpolation
 flat in vec3 vertColor;
 
 out vec4 color;

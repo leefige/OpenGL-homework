@@ -18,44 +18,69 @@
 
 using namespace cg;
 
-// window settings
-const int SCR_WIDTH = 800;
-const int SCR_HEIGHT = 600;
+// how to display: vertices, wireframe, faces, faces and edges
+enum class DisplayType : int
+{
+    VERTEX = 0,
+    WIREFRAME = 1,
+    FACE = 2,
+    EDGE_FACE = 3,
+};
 
+// generate a vertex with given postion and random color
+struct VertRandColor
+{
+    GLfloat x, y, z, r, g, b;
+    VertRandColor(const Vertex& v) :
+        x(v.x), y(v.y), z(v.z),
+        r(GLfloat(rand() % 224 + 32) / 255.0f),
+        g(GLfloat(rand() % 224 + 32) / 255.0f),
+        b(GLfloat(rand() % 224 + 32) / 255.0f) {}
+};
+
+// ================================================================
+
+// window settings
+constexpr int SCR_WIDTH = 800;
+constexpr int SCR_HEIGHT = 600;
+
+// object file path
 const char* const OBJ_FILE = "eight.uniform.obj";
 
+// point & edge color: light green
+constexpr GLfloat pointColor[3] = {0.1f, 0.95f, 0.1f};
+
+constexpr glm::vec3 GLM_UP(0.0f, 1.0f, 0.0f);
+constexpr glm::vec3 GLM_DOWN(0.0f, -1.0f, 0.0f);
+constexpr glm::vec3 GLM_RIGHT(0.0f, 0.0f, 1.0f);
+constexpr glm::vec3 GLM_LEFT(0.0f, 0.0f, -1.0f);
+
+// pointers to model / view / projection matrices
+std::unique_ptr<glm::mat4> init_model = nullptr;
 std::unique_ptr<glm::mat4> model = nullptr;
 std::unique_ptr<glm::mat4> view = nullptr;
 std::unique_ptr<glm::mat4> projection = nullptr;
 
-GLfloat pointColor[3] = {0.1f, 0.95f, 0.1f};
+// current display type, default to be faces only
+DisplayType current_display = DisplayType::FACE;
 
-struct VertRandColor
-{
-    GLfloat x, y, z, r, g, b;
-    VertRandColor(const Obj::Vertex& v) : x(v.x), y(v.y), z(v.z)
-    {
-        r = GLfloat(rand() % 224 + 32) / 255.0f;
-        g = GLfloat(rand() % 224 + 32) / 255.0f;
-        b = GLfloat(rand() % 224 + 32) / 255.0f;
-    }
-};
+// ================================================================
 
-
-// callbacks
+// callbacks function
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 
-// drawing function
-void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj);
+// buffer binding & drawing functions
+GLsizei bindFaces(GLuint VAO, GLuint VBO, const Obj& obj);
 void drawFaces(const Shader& shader, GLuint VAO, int num);
 
-void bindVertices(GLuint VAO, GLuint VBO, const Obj& obj);
+GLsizei bindVertices(GLuint VAO, GLuint VBO, const Obj& obj);
 void drawVertices(const Shader& shader, GLuint VAO, int num);
 
-//void bindEdges(GLuint VAO, GLuint VBO, const Obj& obj);
-//void drawEdges(const Shader& shader, GLuint VAO, int num);
+GLsizei bindEdges(GLuint VAO, GLuint VBO, const Obj& obj);
+void drawEdges(const Shader& shader, GLuint VAO, int num);
 
+// ================================================================
 
 int main()
 {
@@ -68,7 +93,10 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Assignment 1: display a 3D object", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Yifei Li - Assignment 1: "
+                                          "display a 3D object; press ENTER to change display mode; "
+                                          "press ARROW KEYS to rotate it; press R to reset position; "
+                                          "press ESC to exit", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cerr << "Error creating window" << std::endl;
 		glfwTerminate();
@@ -93,10 +121,10 @@ int main()
 		return -2;
 	}
 
-	// ---------------------------------------------------------------
+    // Setup OpenGL options
+    glEnable(GL_DEPTH_TEST);
 
-	// Setup OpenGL options
-	glEnable(GL_DEPTH_TEST);
+	// ---------------------------------------------------------------
 
 	// Install GLSL Shader programs
 	auto faceShader = Shader::create("face.vert", "face.frag");
@@ -131,53 +159,71 @@ int main()
         return -4;;
     }
 
-    const int numFaces = my_obj.numTriangles();
-    const int numVertices= my_obj.numVertices();
-
     // ---------------------------------------------------------------
 
-	// Set up vertex data (and buffer(s)) and attribute pointers
-    // 0: face; 1: vertex; 2: edge
-    GLuint VAO[3];
-    GLuint VBO[3];
+	// alloc & bind VAOs & VBOs for drawing faces, vertices and edges
+
+    const int FACE_IDX = 0;
+    const int VERT_IDX = 1;
+    const int EDGE_IDX = 2;
+
+    GLuint VAO[3]{0};
+    GLuint VBO[3]{0};
+    // record # of vertices to draw for each case
+    GLsizei nVert[3]{0};
+
     glGenVertexArrays(3, VAO);
     glGenBuffers(3, VBO);
 
-    bindFaces(VAO[0], VBO[0], my_obj);
-    bindVertices(VAO[1], VBO[1], my_obj);
-	
+    nVert[FACE_IDX] = bindFaces(VAO[FACE_IDX], VBO[FACE_IDX], my_obj);
+    nVert[VERT_IDX] = bindVertices(VAO[VERT_IDX], VBO[VERT_IDX], my_obj);
+    nVert[EDGE_IDX] = bindEdges(VAO[EDGE_IDX], VBO[EDGE_IDX], my_obj);
 
 	// ---------------------------------------------------------------
 
 	// Define the viewport dimensions
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
-	// Update loop
-
     // Create transformations
-    glm::mat4 init_model = glm::rotate(
-        glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, -1.0f, 0.0f)),
-        glm::radians(90.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-    model = std::make_unique<glm::mat4>(init_model);
+    init_model = std::make_unique<glm::mat4>(glm::rotate(
+        glm::rotate(glm::mat4(1.0f), glm::radians(50.0f), GLM_UP),
+        glm::radians(70.0f), GLM_RIGHT));
+    //init_model = std::make_unique<glm::mat4>(1.0f);
+    model = std::make_unique<glm::mat4>(*init_model);
     view = std::make_unique<glm::mat4>(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f)));
-    // Note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
-    projection = std::make_unique<glm::mat4>(glm::perspective(glm::radians(45.0f), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100.0f));
+    projection = std::make_unique<glm::mat4>(
+        glm::perspective(glm::radians(45.0f), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100.0f));
 
+    // Update loop
 
 	while (glfwWindowShouldClose(window) == 0) {
 		// check event queue
 		glfwPollEvents();
 
-		/* your update code here */
-	
-		// draw background
+		// draw background: dark gray
 		glClearColor(0.1f, 0.1f, 0.1f, 0.9f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
 
-		// draw a triangle
-        drawFaces(*faceShader, VAO[0], numFaces * 3);
-        drawVertices(*pointShader, VAO[1], numVertices);
+		// display
+        switch (current_display) {
+        case DisplayType::VERTEX:
+            drawVertices(*pointShader, VAO[VERT_IDX], nVert[VERT_IDX]);
+            break;
+        case DisplayType::WIREFRAME:
+            drawEdges(*pointShader, VAO[EDGE_IDX], nVert[EDGE_IDX]);
+            break;
+        case DisplayType::FACE:
+            drawFaces(*faceShader, VAO[FACE_IDX], nVert[FACE_IDX]);
+            break;
+        case DisplayType::EDGE_FACE:
+            drawFaces(*faceShader, VAO[FACE_IDX], nVert[FACE_IDX]);
+            drawEdges(*pointShader, VAO[EDGE_IDX], nVert[EDGE_IDX]);
+            break;
+        default:
+            std::cerr << "Unsupported display type: " << int(current_display) << std::endl;
+            current_display = DisplayType::FACE;
+            break;
+        }
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -201,16 +247,24 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     }
     // rotate object
     else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_UP));
     }
     else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_DOWN));
     }
     else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_LEFT));
     }
     else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, 0.0f, -1.0f)));
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_RIGHT));
+    }
+    // reset object position
+    else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+        model = std::make_unique<glm::mat4>(*init_model);
+    }
+    // switch display type
+    else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+        current_display = DisplayType((int(current_display) + 1) % int(sizeof(DisplayType)));
     }
 }
 
@@ -220,7 +274,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
+GLsizei bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
 {
     // bind VAO
     glBindVertexArray(VAO);
@@ -235,6 +289,7 @@ void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
             data.emplace_back(obj.vertices[vid]);
         }
     }
+
     glBufferData(GL_ARRAY_BUFFER, sizeof(VertRandColor) * data.size(), &data.front(), GL_STATIC_DRAW);
 
     // set vertex attribute pointers
@@ -248,12 +303,14 @@ void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
     // unbind VBO & VAO
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    return GLsizei(data.size());
 }
 
 void drawFaces(const Shader& shader, GLuint VAO, int num)
 {
     shader.use();
-    //glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
+
     // get uniform locations
     GLint modelLoc = glGetUniformLocation(shader.getProgram(), "model");
     GLint viewLoc = glGetUniformLocation(shader.getProgram(), "view");
@@ -265,12 +322,13 @@ void drawFaces(const Shader& shader, GLuint VAO, int num)
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(*projection));
 
     glBindVertexArray(VAO);
+    // draw flat color for each face instead of interpolating
     glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
     glDrawArrays(GL_TRIANGLES, 0, num);
     glBindVertexArray(0);
 }
 
-void bindVertices(GLuint VAO, GLuint VBO, const Obj& obj)
+GLsizei bindVertices(GLuint VAO, GLuint VBO, const Obj& obj)
 {
     // bind VAO
     glBindVertexArray(VAO);
@@ -278,7 +336,7 @@ void bindVertices(GLuint VAO, GLuint VBO, const Obj& obj)
     // bind VBO, buffer data to it
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Obj::Vertex) * obj.numVertices(), &obj.vertices.front(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * obj.numVertices(), &obj.vertices.front(), GL_STATIC_DRAW);
 
     // set vertex attribute pointers
     // position attribute
@@ -288,6 +346,8 @@ void bindVertices(GLuint VAO, GLuint VBO, const Obj& obj)
     // unbind VBO & VAO
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    return GLsizei(obj.numVertices());
 }
 
 void drawVertices(const Shader& shader, GLuint VAO, int num)
@@ -304,9 +364,71 @@ void drawVertices(const Shader& shader, GLuint VAO, int num)
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(*view));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(*projection));
 
+    // use the same color for all points
     GLint colorLoc = glGetUniformLocation(shader.getProgram(), "ourColor");
     glUniform3fv(colorLoc, 1, pointColor);
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_POINTS, 0, num);
+    glBindVertexArray(0);
+}
+
+GLsizei bindEdges(GLuint VAO, GLuint VBO, const Obj& obj)
+{
+    // bind VAO
+    glBindVertexArray(VAO);
+
+    // bind VBO, buffer data to it
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    // each face has 3 edges, though we are drawing one edge twice...
+    std::vector<Vertex> data;
+    for (const auto& face : obj.faces) {
+        int vid[3] = {face[0] - 1, face[1] - 1, face[2] - 1};
+        // edge (0, 1)
+        data.push_back(obj.vertices[vid[0]]);
+        data.push_back(obj.vertices[vid[1]]);
+        // edge (0, 2)
+        data.push_back(obj.vertices[vid[0]]);
+        data.push_back(obj.vertices[vid[2]]);
+        // edge (1, 2)
+        data.push_back(obj.vertices[vid[1]]);
+        data.push_back(obj.vertices[vid[2]]);
+    }
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * data.size(), &data.front(), GL_STATIC_DRAW);
+
+    // set vertex attribute pointers
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+
+    // unbind VBO & VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return GLsizei(data.size());
+}
+
+void drawEdges(const Shader& shader, GLuint VAO, int num)
+{
+    shader.use();
+
+    // get uniform locations
+    GLint modelLoc = glGetUniformLocation(shader.getProgram(), "model");
+    GLint viewLoc = glGetUniformLocation(shader.getProgram(), "view");
+    GLint projLoc = glGetUniformLocation(shader.getProgram(), "projection");
+
+    // pass uniform values to shader
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(*model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(*view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(*projection));
+
+    // use the same color for all points
+    GLint colorLoc = glGetUniformLocation(shader.getProgram(), "ourColor");
+    glUniform3fv(colorLoc, 1, pointColor);
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_LINES, 0, num);
     glBindVertexArray(0);
 }

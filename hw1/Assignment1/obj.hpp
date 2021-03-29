@@ -11,36 +11,35 @@
 namespace cg
 {
 
+struct TriFace
+{
+	int v[3];
+	TriFace(int f0, int f1, int f2) { v[0] = f0; v[1] = f1; v[2] = f2; }
+
+	int& operator[](int idx)
+	{
+		return v[idx];
+	}
+
+	const int& operator[](int idx) const
+	{
+		return v[idx];
+	}
+};
+
+struct Vertex
+{
+	GLfloat x, y, z;
+	Vertex(GLfloat x_, GLfloat y_, GLfloat z_) : x(x_), y(y_), z(z_) {}
+};
+
 class Obj
 {
 public:
-	struct Tri
-	{
-		int v[3];
-		Tri(int f0, int f1, int f2) { v[0] = f0; v[1] = f1; v[2] = f2; }
-
-		int& operator[](int idx)
-		{
-			return v[idx];
-		}
-
-		const int& operator[](int idx) const
-		{
-			return v[idx];
-		}
-	};
-
-	struct Vertex
-	{
-		GLfloat x, y, z;
-		Vertex(GLfloat x_, GLfloat y_, GLfloat z_) : x(x_), y(y_), z(z_) {}
-	};
-
 	std::vector<Vertex> vertices;
-	std::vector<Tri> faces;
+	std::vector<TriFace> faces;
 
 	int numTriangles() const { return int(faces.size()); }
-
 	int numVertices() const { return int(vertices.size()); }
 
 	friend std::istream& operator>>(std::istream& in, Obj& obj);
