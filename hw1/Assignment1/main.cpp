@@ -204,7 +204,15 @@ void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
 
     // bind VBO, buffer data to it
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    obj.bufferData(GL_ARRAY_BUFFER, GL_STATIC_DRAW);
+
+    std::vector<Obj::Vertex> data;
+    for (const auto& face : obj.faces) {
+        for (int i = 0; i < 3; i++) {
+            int vid = face[i] - 1;
+            data.push_back(obj.vertices[vid]);
+        }
+    }
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Obj::Vertex) * data.size(), &data.front(), GL_STATIC_DRAW);
 
     // set vertex attribute pointers
     // position attribute

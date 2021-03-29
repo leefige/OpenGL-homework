@@ -14,7 +14,6 @@ namespace cg
 class Obj
 {
 public:
-
 	struct Tri
 	{
 		int v[3];
@@ -37,28 +36,14 @@ public:
 		Vertex(GLfloat x_, GLfloat y_, GLfloat z_) : x(x_), y(y_), z(z_) {}
 	};
 
-	void bufferData(GLenum target, GLenum usage) const
-	{
-		std::vector<Vertex> data;
-		for (const Tri& face : faces) {
-			for (int i = 0; i < 3; i++) {
-				int vid = face[i] - 1;
-				data.push_back(vertices[vid]);
-			}
-		}
-		glBufferData(target, sizeof(Vertex) * data.size(), &data.front(), usage);
-		return;
-	}
+	std::vector<Vertex> vertices;
+	std::vector<Tri> faces;
 
 	int numTriangles() const { return int(faces.size()); }
 
 	int numVertices() const { return int(vertices.size()); }
 
 	friend std::istream& operator>>(std::istream& in, Obj& obj);
-
-private:
-	std::vector<Vertex> vertices;
-	std::vector<Tri> faces;
 };
 
 std::istream& operator>>(std::istream& in, Obj& obj)
@@ -72,7 +57,7 @@ std::istream& operator>>(std::istream& in, Obj& obj)
 			std::istringstream iss(buf);
 			iss >> cmd;
 
-			if (cmd[0] == '#' || buf[0] == '\n' || buf[0] == '\0') {
+			if (cmd.size() == 0 || cmd[0] == '#' || cmd[0] == '\n') {
 				continue;
 			}
 			else if (cmd.compare("v") == 0) {
