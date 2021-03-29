@@ -50,7 +50,9 @@ public:
 		return;
 	}
 
-	size_t numTriangles() const { return faces.size(); }
+	int numTriangles() const { return int(faces.size()); }
+
+	int numVertices() const { return int(vertices.size()); }
 
 	friend std::istream& operator>>(std::istream& in, Obj& obj);
 

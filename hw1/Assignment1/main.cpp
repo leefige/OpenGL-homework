@@ -31,6 +31,11 @@ std::unique_ptr<glm::mat4> projection = nullptr;
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 
+// drawing function
+void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj);
+void drawFaces(const Shader& shader, GLuint VAO, int num);
+
+
 int main()
 {
 	// Setup a GLFW window
@@ -42,7 +47,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "My OpenGL project", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Assignment 1: display a 3D object", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cerr << "Error creating window" << std::endl;
 		glfwTerminate();
@@ -101,26 +106,12 @@ int main()
     // ---------------------------------------------------------------
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
-
-	// bind VAO
-	GLuint VAO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	// bind VBO, buffer data to it
-	GLuint VBO;
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    my_obj.bufferData(GL_ARRAY_BUFFER, GL_STATIC_DRAW);
-
-	// set vertex attribute pointers
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-
-	// unbind VBO & VAO
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+    GLuint VAO;
+    GLuint VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    bindFaces(VAO, VBO, my_obj);
+	
 
 	// ---------------------------------------------------------------
 
@@ -147,7 +138,7 @@ int main()
 		/* your update code here */
 	
 		// draw background
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(0.3f, 0.5f, 0.4f, 0.6f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // get uniform locations
@@ -163,10 +154,7 @@ int main()
         glUniform3fv(colorLoc, 1, ourColor);
 
 		// draw a triangle
-		shaderProgram->use();
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, my_obj.numTriangles() * 3);
-		glBindVertexArray(0);
+        drawFaces(*shaderProgram, VAO, my_obj.numTriangles() * 3);
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -187,13 +175,18 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	// exit when pressing ESC
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
-    } else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+    }
+    // rotate object
+    else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
         model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-    } else if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+    }
+    else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS) {
         model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-    } else if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+    }
+    else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
         model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
-    } else if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+    }
+    else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
         model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), glm::vec3(0.0f, 0.0f, -1.0f)));
     }
 }
@@ -202,4 +195,31 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
 {
 	// resize window
 	glViewport(0, 0, width, height);
+}
+
+void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
+{
+    // bind VAO
+    glBindVertexArray(VAO);
+
+    // bind VBO, buffer data to it
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    obj.bufferData(GL_ARRAY_BUFFER, GL_STATIC_DRAW);
+
+    // set vertex attribute pointers
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+
+    // unbind VBO & VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void drawFaces(const Shader& shader, GLuint VAO, int num)
+{
+    shader.use();
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, num);
+    glBindVertexArray(0);
 }
