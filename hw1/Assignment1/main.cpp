@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <cstdlib>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -27,6 +28,20 @@ std::unique_ptr<glm::mat4> model = nullptr;
 std::unique_ptr<glm::mat4> view = nullptr;
 std::unique_ptr<glm::mat4> projection = nullptr;
 
+GLfloat pointColor[3] = {0.1f, 0.95f, 0.1f};
+
+struct VertRandColor
+{
+    GLfloat x, y, z, r, g, b;
+    VertRandColor(const Obj::Vertex& v) : x(v.x), y(v.y), z(v.z)
+    {
+        r = GLfloat(rand() % 224 + 32) / 255.0f;
+        g = GLfloat(rand() % 224 + 32) / 255.0f;
+        b = GLfloat(rand() % 224 + 32) / 255.0f;
+    }
+};
+
+
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
@@ -34,6 +49,12 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 // drawing function
 void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj);
 void drawFaces(const Shader& shader, GLuint VAO, int num);
+
+void bindVertices(GLuint VAO, GLuint VBO, const Obj& obj);
+void drawVertices(const Shader& shader, GLuint VAO, int num);
+
+//void bindEdges(GLuint VAO, GLuint VBO, const Obj& obj);
+//void drawEdges(const Shader& shader, GLuint VAO, int num);
 
 
 int main()
@@ -78,12 +99,19 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 
 	// Install GLSL Shader programs
-	auto shaderProgram = Shader::create("VertexShader.vert", "FragmentShader.frag");
-	if (shaderProgram == nullptr) {
+	auto faceShader = Shader::create("face.vert", "face.frag");
+	if (faceShader == nullptr) {
 		std::cerr << "Error creating Shader Program" << std::endl;
 		glfwTerminate();
 		return -3;
 	}
+
+    auto pointShader = Shader::create("point.vert", "point.frag");
+    if (pointShader == nullptr) {
+        std::cerr << "Error creating Shader Program" << std::endl;
+        glfwTerminate();
+        return -3;
+    }
 
     // ---------------------------------------------------------------
     // load model
@@ -103,14 +131,20 @@ int main()
         return -4;;
     }
 
+    const int numFaces = my_obj.numTriangles();
+    const int numVertices= my_obj.numVertices();
+
     // ---------------------------------------------------------------
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
-    GLuint VAO;
-    GLuint VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    bindFaces(VAO, VBO, my_obj);
+    // 0: face; 1: vertex; 2: edge
+    GLuint VAO[3];
+    GLuint VBO[3];
+    glGenVertexArrays(3, VAO);
+    glGenBuffers(3, VBO);
+
+    bindFaces(VAO[0], VBO[0], my_obj);
+    bindVertices(VAO[1], VBO[1], my_obj);
 	
 
 	// ---------------------------------------------------------------
@@ -129,7 +163,6 @@ int main()
     // Note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
     projection = std::make_unique<glm::mat4>(glm::perspective(glm::radians(45.0f), (GLfloat)SCR_WIDTH / (GLfloat)SCR_HEIGHT, 0.1f, 100.0f));
 
-    GLfloat ourColor[3] = {0.9f, 0.9f, 0.95f};
 
 	while (glfwWindowShouldClose(window) == 0) {
 		// check event queue
@@ -138,31 +171,21 @@ int main()
 		/* your update code here */
 	
 		// draw background
-		glClearColor(0.3f, 0.5f, 0.4f, 0.6f);
+		glClearColor(0.1f, 0.1f, 0.1f, 0.9f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // get uniform locations
-        GLint modelLoc = glGetUniformLocation(shaderProgram->getProgram(), "model");
-        GLint viewLoc = glGetUniformLocation(shaderProgram->getProgram(), "view");
-        GLint projLoc = glGetUniformLocation(shaderProgram->getProgram(), "projection");
-        GLint colorLoc = glGetUniformLocation(shaderProgram->getProgram(), "ourColor");
-
-        // pass uniform values to shader
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(*model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(*view));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(*projection));
-        glUniform3fv(colorLoc, 1, ourColor);
+        
 
 		// draw a triangle
-        drawFaces(*shaderProgram, VAO, my_obj.numTriangles() * 3);
+        drawFaces(*faceShader, VAO[0], numFaces * 3);
+        drawVertices(*pointShader, VAO[1], numVertices);
 
 		// swap buffer
 		glfwSwapBuffers(window);
 	}
 
 	// properly de-allocate all resources
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
+	glDeleteVertexArrays(3, VAO);
+	glDeleteBuffers(3, VBO);
 
 	glfwTerminate();
 	return 0;
@@ -205,14 +228,57 @@ void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
     // bind VBO, buffer data to it
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    std::vector<Obj::Vertex> data;
+    std::vector<VertRandColor> data;
     for (const auto& face : obj.faces) {
         for (int i = 0; i < 3; i++) {
             int vid = face[i] - 1;
-            data.push_back(obj.vertices[vid]);
+            data.emplace_back(obj.vertices[vid]);
         }
     }
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Obj::Vertex) * data.size(), &data.front(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertRandColor) * data.size(), &data.front(), GL_STATIC_DRAW);
+
+    // set vertex attribute pointers
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertRandColor), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertRandColor), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
+
+    // unbind VBO & VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void drawFaces(const Shader& shader, GLuint VAO, int num)
+{
+    shader.use();
+    //glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
+    // get uniform locations
+    GLint modelLoc = glGetUniformLocation(shader.getProgram(), "model");
+    GLint viewLoc = glGetUniformLocation(shader.getProgram(), "view");
+    GLint projLoc = glGetUniformLocation(shader.getProgram(), "projection");
+
+    // pass uniform values to shader
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(*model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(*view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(*projection));
+
+    glBindVertexArray(VAO);
+    glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
+    glDrawArrays(GL_TRIANGLES, 0, num);
+    glBindVertexArray(0);
+}
+
+void bindVertices(GLuint VAO, GLuint VBO, const Obj& obj)
+{
+    // bind VAO
+    glBindVertexArray(VAO);
+
+    // bind VBO, buffer data to it
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Obj::Vertex) * obj.numVertices(), &obj.vertices.front(), GL_STATIC_DRAW);
 
     // set vertex attribute pointers
     // position attribute
@@ -224,10 +290,23 @@ void bindFaces(GLuint VAO, GLuint VBO, const Obj& obj)
     glBindVertexArray(0);
 }
 
-void drawFaces(const Shader& shader, GLuint VAO, int num)
+void drawVertices(const Shader& shader, GLuint VAO, int num)
 {
     shader.use();
+
+    // get uniform locations
+    GLint modelLoc = glGetUniformLocation(shader.getProgram(), "model");
+    GLint viewLoc = glGetUniformLocation(shader.getProgram(), "view");
+    GLint projLoc = glGetUniformLocation(shader.getProgram(), "projection");
+
+    // pass uniform values to shader
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(*model));
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(*view));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(*projection));
+
+    GLint colorLoc = glGetUniformLocation(shader.getProgram(), "ourColor");
+    glUniform3fv(colorLoc, 1, pointColor);
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, num);
+    glDrawArrays(GL_POINTS, 0, num);
     glBindVertexArray(0);
 }

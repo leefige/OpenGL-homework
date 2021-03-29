@@ -23,10 +23,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="VertexShader.vert">
+    <None Include="face.vert">
       <Filter>源文件</Filter>
     </None>
-    <None Include="FragmentShader.frag">
+    <None Include="face.frag">
+      <Filter>源文件</Filter>
+    </None>
+    <None Include="point.vert">
+      <Filter>源文件</Filter>
+    </None>
+    <None Include="point.frag">
       <Filter>源文件</Filter>
     </None>
   </ItemGroup>

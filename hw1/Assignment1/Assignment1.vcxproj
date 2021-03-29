@@ -149,12 +149,14 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmentShader.frag">
+    <None Include="face.frag">
       <SubType>GLSL</SubType>
     </None>
-    <None Include="VertexShader.vert">
+    <None Include="face.vert">
       <SubType>GLSL</SubType>
     </None>
+    <None Include="point.frag" />
+    <None Include="point.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="obj.hpp" />
