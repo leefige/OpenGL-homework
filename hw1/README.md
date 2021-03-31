@@ -20,7 +20,12 @@ Submit code, report and screen recording of program running.
 
 If you open the VS solution in VS, just build and run. Otherwise, put the GLSL files (`*.vert`, `*.frag`) and the 3D mesh object file (`eight.uniform.obj`) into the same dir as the built `Assignment1.exe` executable, and then run the executable.
 
-Press ENTER to switch among supported display modes (face, face and edge, vertex, wireframe). Press ARROW keys to rotate the object. Press R to reset the position of the object. Press ESC to exit.
+- Press ENTER to switch among supported display modes (face, face and edge, vertex, wireframe).
+- Press W/A/S/D to rotate the object.
+- Press ARROW keys to translate the object.
+- Press C to change the color of wireframe.
+- Press R to reset the position of the object.
+- Press ESC to exit.
 
 ## Results and demo
 
@@ -55,4 +60,6 @@ Specifically, in order to draw each face with a different color, a random color 
 
 ### Keyboard controlling
 
-Keyboard inputs are captured by the callback function `keyCallback`. When pressing ARROW keys, the model matrix of the object is rotated along certain axis. Axes are pre-defined as `GLM_UP|GLM_DOWN|GLM_LEFT|GLM_RIGHT`.
+Keyboard inputs are captured by the callback function `keyCallback`. When pressing W/A/S/D keys, the model matrix of the object is rotated along certain axis. Axes are pre-defined as `GLM_UP|GLM_DOWN|GLM_LEFT|GLM_RIGHT`. It's similar when pressing ARROW keys.
+
+When pressing C key, a variable controlling the wireframe color, `edgeColor`, is rewritten with a random color.

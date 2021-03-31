@@ -22,9 +22,9 @@ using namespace cg;
 enum class DisplayType : int
 {
     VERTEX = 0,
-    WIREFRAME = 1,
-    FACE = 2,
-    EDGE_FACE = 3,
+    FACE = 1,
+    EDGE_FACE = 2,
+    WIREFRAME = 3,
 };
 
 // generate a vertex with given postion and random color
@@ -47,13 +47,19 @@ constexpr int SCR_HEIGHT = 600;
 // object file path
 const char* const OBJ_FILE = "eight.uniform.obj";
 
-// point & edge color: light green
-constexpr GLfloat pointColor[3] = {0.1f, 0.95f, 0.1f};
+// point color: light green
+constexpr GLfloat POINT_COLOR[3] = {0.1f, 0.95f, 0.1f};
+
+constexpr float ROTATE_SPEED = glm::radians(5.0f);
+constexpr float TRANSLATE_SPEED = 0.15f;
 
 constexpr glm::vec3 GLM_UP(0.0f, 1.0f, 0.0f);
-constexpr glm::vec3 GLM_DOWN(0.0f, -1.0f, 0.0f);
 constexpr glm::vec3 GLM_RIGHT(0.0f, 0.0f, 1.0f);
-constexpr glm::vec3 GLM_LEFT(0.0f, 0.0f, -1.0f);
+constexpr glm::vec3 GLM_DOWN = -GLM_UP;
+constexpr glm::vec3 GLM_LEFT = -GLM_RIGHT;
+
+// edge color: init to be light green
+GLfloat edgeColor[3] = {0.1f, 0.95f, 0.1f};
 
 // pointers to model / view / projection matrices
 std::unique_ptr<glm::mat4> init_model = nullptr;
@@ -93,10 +99,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window
-	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Yifei Li - Assignment 1: "
-                                          "display a 3D object; press ENTER to change display mode; "
-                                          "press ARROW KEYS to rotate it; press R to reset position; "
-                                          "press ESC to exit", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Yifei Li - Assignment 1: display a 3D object; press ESC to exit", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cerr << "Error creating window" << std::endl;
 		glfwTerminate();
@@ -246,17 +249,30 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 		glfwSetWindowShouldClose(window, GL_TRUE);
     }
     // rotate object
+    else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, ROTATE_SPEED, GLM_UP));
+    }
+    else if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, ROTATE_SPEED, GLM_DOWN));
+    }
+    else if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, ROTATE_SPEED, GLM_LEFT));
+    }
+    else if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+        model = std::make_unique<glm::mat4>(glm::rotate(*model, ROTATE_SPEED, GLM_RIGHT));
+    }
+    // translate object
     else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_UP));
+        model = std::make_unique<glm::mat4>(glm::translate(*model, GLM_RIGHT * TRANSLATE_SPEED));
     }
     else if (key == GLFW_KEY_LEFT && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_DOWN));
+        model = std::make_unique<glm::mat4>(glm::translate(*model, GLM_LEFT * TRANSLATE_SPEED));
     }
     else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_LEFT));
+        model = std::make_unique<glm::mat4>(glm::translate(*model, GLM_UP * TRANSLATE_SPEED));
     }
     else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
-        model = std::make_unique<glm::mat4>(glm::rotate(*model, glm::radians(5.0f), GLM_RIGHT));
+        model = std::make_unique<glm::mat4>(glm::translate(*model, GLM_DOWN * TRANSLATE_SPEED));
     }
     // reset object position
     else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
@@ -265,6 +281,12 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     // switch display type
     else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
         current_display = DisplayType((int(current_display) + 1) % int(sizeof(DisplayType)));
+    }
+    // change wireframe color
+    else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
+        for (int i = 0; i < 3; i++) {
+            edgeColor[i] = GLfloat((rand() % 128 + 128) / 255.0f);
+        }
     }
 }
 
@@ -366,7 +388,7 @@ void drawVertices(const Shader& shader, GLuint VAO, int num)
 
     // use the same color for all points
     GLint colorLoc = glGetUniformLocation(shader.getProgram(), "ourColor");
-    glUniform3fv(colorLoc, 1, pointColor);
+    glUniform3fv(colorLoc, 1, POINT_COLOR);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_POINTS, 0, num);
@@ -426,7 +448,7 @@ void drawEdges(const Shader& shader, GLuint VAO, int num)
 
     // use the same color for all points
     GLint colorLoc = glGetUniformLocation(shader.getProgram(), "ourColor");
-    glUniform3fv(colorLoc, 1, pointColor);
+    glUniform3fv(colorLoc, 1, edgeColor);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_LINES, 0, num);
