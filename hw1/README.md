@@ -14,7 +14,11 @@ Submit code, report and screen recording of program running.
 ## Environment
 
 - Windows 10 Pro 20H2
-- Visual Studio Community 2018 version 16.9.2
+- Visual Studio Community 2019 version 16.9.2
+- Please set following environment variables to correctly build the VS project:
+  - `GLFW_HOME`: root dir of GLFW version 3.3.3 library
+  - `GLAD_HOME`: root dir of GLAD version 4.6 library
+  - `GLM_HOME`: root dir of GLM version 0.9.9.8 library
 
 ## Usage
 

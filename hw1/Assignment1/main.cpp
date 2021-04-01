@@ -390,6 +390,9 @@ void drawVertices(const Shader& shader, GLuint VAO, int num)
     GLint colorLoc = glGetUniformLocation(shader.getProgram(), "ourColor");
     glUniform3fv(colorLoc, 1, POINT_COLOR);
 
+    glPointSize(2);
+    glEnable(GL_POINT_SMOOTH);
+
     glBindVertexArray(VAO);
     glDrawArrays(GL_POINTS, 0, num);
     glBindVertexArray(0);
