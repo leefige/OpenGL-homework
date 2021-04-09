@@ -37,16 +37,16 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmentShader.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="VertexShader.vert">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="text.vert">
       <Filter>Shaders</Filter>
     </None>
     <None Include="text.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="sphere.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="sphere.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

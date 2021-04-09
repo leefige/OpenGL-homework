@@ -154,14 +154,18 @@
     <ClInclude Include="text.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmentShader.frag" />
+    <None Include="sphere.frag">
+      <SubType>GLSL</SubType>
+    </None>
+    <None Include="sphere.vert">
+      <SubType>GLSL</SubType>
+    </None>
     <None Include="text.frag">
       <SubType>GLSL</SubType>
     </None>
     <None Include="text.vert">
       <SubType>GLSL</SubType>
     </None>
-    <None Include="VertexShader.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
