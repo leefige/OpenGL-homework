@@ -26,7 +26,7 @@ public:
 
     // Constructor with vectors
     Camera(glm::vec3 position, glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f),
-           GLfloat speed = 3.0f, GLfloat mouseSensitivity = 0.25f,
+           GLfloat speed = 3.0f, GLfloat mouseSensitivity = 15.0f,
            GLfloat yaw = -90.0f, GLfloat pitch = 0.0f, GLfloat zoom = 45.0f, 
            glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f)) :
         front(front), movementSpeed(speed), mouseSensitivity(mouseSensitivity), zoom(zoom),
@@ -67,9 +67,27 @@ public:
         if (direction == Movement::BACKWARD)
             this->position -= this->front * velocity;
         if (direction == Movement::LEFT)
-            this->position -= this->right * velocity;
+            MoveAround(direction, deltaTime);
         if (direction == Movement::RIGHT)
-            this->position += this->right * velocity;
+            MoveAround(direction, deltaTime);
+    }
+
+    void MoveAround(Movement direction, GLfloat deltaTime)
+    {
+        GLfloat deg = this->mouseSensitivity * deltaTime;
+        auto toward = position;
+        if (direction == Movement::LEFT) {
+            auto res = glm::rotate(glm::mat4(1.0f), glm::radians(deg), {0, -1, 0}) * glm::vec4(toward.x, toward.y, toward.z, 1.0f);
+            auto res3v = glm::vec3(res.x, res.y, res.z);
+            this->position = res3v;
+            this->front = -glm::normalize(this->position);
+        }
+        if (direction == Movement::RIGHT) {
+            auto res = glm::rotate(glm::mat4(1.0f), glm::radians(deg), {0, 1, 0}) * glm::vec4(toward.x, toward.y, toward.z, 1.0f);
+            auto res3v = glm::vec3(res.x, res.y, res.z);
+            this->position = res3v;
+            this->front = -glm::normalize(this->position);
+        }
     }
 
     // Processes input received from a mouse input system. Expects the offset value in both the x and y direction.

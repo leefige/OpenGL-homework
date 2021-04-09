@@ -75,6 +75,11 @@ Camera camera({0, 0, 3}, {0, 0, -1}, 1);
 
 bool keys[1024]{false};
 
+const glm::mat4 sphereModel{glm::rotate(
+    glm::scale(glm::mat4(1.0f), {1.0f, 1.0f, 1.0f}),
+    glm::radians(90.0f), {1, 0, 0}
+)};
+
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
@@ -110,7 +115,6 @@ int main()
 	// register callbacks
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetKeyCallback(window, keyCallback);
-    glfwSetCursorPosCallback(window, mouseCallback);
     glfwSetScrollCallback(window, scrollCallback);
 
 
@@ -209,11 +213,11 @@ int main()
 		shaderProgram->Use();
 
         glm::mat4 model(1);
-        glm::mat4 view = camera.ViewMatrix();
+        glm::mat4 view = glm::lookAt(camera.Position(), {0.0f, 0.0f, 0.0f}, camera.Up());
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom()), float(screenWidth) / float(screenHeight), 0.1f, 100.0f);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(sphereModel));
 
         glBindTexture(GL_TEXTURE_2D, textures[3]);
 
