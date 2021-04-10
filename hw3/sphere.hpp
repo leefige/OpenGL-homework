@@ -2,6 +2,7 @@
 #define CG_SPHERE_H_
 
 #include <vector>
+#include <memory>
 
 #include <glad/glad.h>
 
@@ -88,31 +89,18 @@ public:
                 }
             }
         }
+
+        bindUnitSphere();
     }
-};
 
-class Sphere
-{
-public:
-	Sphere(float radius, const UnitSphere& unitSphere) :
-        Sphere(radius)
-	{
-        bindUnitSphere(unitSphere);
-	}
-
-    Sphere(float radius, int sectorCount, int stackCount) :
-        Sphere(radius, UnitSphere(sectorCount, stackCount)) { }
-
-    virtual ~Sphere()
+    virtual ~UnitSphere()
     {
         glDeleteVertexArrays(1, &VAO_);
         glDeleteBuffers(1, &VBO_);
         glDeleteBuffers(1, &EBO_);
     }
 
-    const glm::mat4& BaseModel() const { return baseModel_; }
-
-    void DrawSphere() const
+    void Draw() const
     {
         glBindVertexArray(VAO_);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
@@ -122,33 +110,26 @@ public:
     }
 
 private:
-    float radius_;
-	GLuint VAO_;
-	GLuint VBO_;
-	GLuint EBO_;
+    GLuint VAO_;
+    GLuint VBO_;
+    GLuint EBO_;
     int numIdxSphere_;
-    glm::mat4 baseModel_;
 
-    Sphere(float radius) :
-        numIdxSphere_(0), radius_(radius),
-        baseModel_{glm::scale(glm::mat4(1.0f), {radius, radius, radius})}
+    void bindUnitSphere()
     {
         glGenVertexArrays(1, &VAO_);
         glGenBuffers(1, &VBO_);
         glGenBuffers(1, &EBO_);
-    }
 
-    void bindUnitSphere(const UnitSphere& unitSphere)
-    {
         glBindVertexArray(VAO_);
 
         // buffer VBO
         glBindBuffer(GL_ARRAY_BUFFER, VBO_);
-        glBufferData(GL_ARRAY_BUFFER, unitSphere.vertices.size() * sizeof(Vertex), &unitSphere.vertices.front(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices.front(), GL_STATIC_DRAW);
 
         // buffer EBO
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, unitSphere.faces.size() * sizeof(TriFace), &unitSphere.faces.front(), GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * sizeof(TriFace), &faces.front(), GL_STATIC_DRAW);
 
         // set vertex attribute pointers
         // position attribute
@@ -166,9 +147,33 @@ private:
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
 
-        numIdxSphere_ =  unitSphere.faces.size() * sizeof(TriFace);
+        numIdxSphere_ = int(faces.size() * sizeof(TriFace));
     }
+};
 
+class Sphere
+{
+public:
+	Sphere(float radius, const std::shared_ptr<UnitSphere>& unitSphere) :
+        radius_(radius),
+        unitSphere_(unitSphere),
+        baseModel_{glm::scale(glm::mat4(1.0f), {radius, radius, radius})} { }
+
+    Sphere(float radius, int sectorCount, int stackCount) :
+        Sphere(radius, std::make_shared<UnitSphere>(sectorCount, stackCount)) { }
+
+    const glm::mat4& Model() const { return baseModel_; }
+
+    float Radius() const { return radius_; }
+
+    const std::shared_ptr<UnitSphere>& GetUnitSphere() const { return unitSphere_; }
+
+    void Draw() const { unitSphere_->Draw(); }
+
+private:
+    float radius_;
+    glm::mat4 baseModel_;
+    const std::shared_ptr<UnitSphere> unitSphere_;
 };
 
 } /* namespace cg */
