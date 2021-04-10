@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClInclude Include="camera.hpp" />
     <ClInclude Include="shader.hpp" />
+    <ClInclude Include="sphere.hpp" />
     <ClInclude Include="text.hpp" />
   </ItemGroup>
   <ItemGroup>

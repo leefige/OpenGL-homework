@@ -19,34 +19,14 @@
 #include "camera.hpp"
 #include "shader.hpp"
 #include "text.hpp"
+#include "sphere.hpp"
 
 using namespace cg;
-
-struct Vertex
-{
-    // position
-    GLfloat x, y, z;
-    // normal
-    GLfloat nx, ny, nz;
-    // texture coord
-    GLfloat s, t;
-
-    Vertex(GLfloat x_, GLfloat y_, GLfloat z_, GLfloat nx_, GLfloat ny_, GLfloat nz_, GLfloat s_, GLfloat t_) :
-        x(x_), y(y_), z(z_), nx(nx_), ny(ny_), nz(nz_), s(s_), t(t_) { }
-};
-
-struct TriFace
-{
-    int idx[3];
-
-    TriFace(int f1, int f2, int f3) : idx{f1, f2, f3} {}
-};
 
 // window settings
 int screenWidth = 800;
 int screenHeight = 600;
 
-constexpr auto PI = 3.14159265358979;
 
 // normalized coordinates
 constexpr GLfloat vertices[] = {
@@ -69,16 +49,14 @@ constexpr const char* const PLANET_NAMES[] = {
     "moon"
 };
 
+const UnitSphere unitSphere(50, 50);
+
 GLuint textures[10]{0};
 
-Camera camera({0, 0, 3}, {0, 0, -1}, 1);
+Camera camera({0, 0, 20}, {0, 0, -1}, 1);
 
 bool keys[1024]{false};
 
-const glm::mat4 sphereModel{glm::rotate(
-    glm::scale(glm::mat4(1.0f), {1.0f, 1.0f, 1.0f}),
-    glm::radians(90.0f), {1, 0, 0}
-)};
 
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -89,7 +67,6 @@ void moveCamera(GLfloat deltaTime);
 
 char Upper(const char& c) { return char(c - 32); }
 void releaseTextures() { glDeleteTextures(10, textures); }
-int bindUnitSphere(GLuint VAO, GLuint VBO, GLuint EBO, int sectorCount, int stackCount);
 
 int main()
 {
@@ -172,18 +149,7 @@ int main()
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
 
-	// bind VAO
-	GLuint VAO;
-	glGenVertexArrays(1, &VAO);
-
-	// bind VBO, buffer data to it
-	GLuint VBO;
-	glGenBuffers(1, &VBO);
-
-    GLuint EBO;
-    glGenBuffers(1, &EBO);
-
-    int numIdxSphere = bindUnitSphere(VAO, VBO, EBO, 20, 20);
+	
 
 	// ---------------------------------------------------------------
 
@@ -194,6 +160,7 @@ int main()
     GLfloat deltaTime = 0.0f;    // Time between current frame and last frame
     GLfloat lastFrame = 0.0f;    // Time of last frame
 
+    Sphere earth(5.0f, unitSphere);
 
 	while (glfwWindowShouldClose(window) == 0) {
         // Calculate deltatime of current frame
@@ -218,20 +185,16 @@ int main()
 		// draw a triangle
 		shaderProgram->Use();
 
-        glm::mat4 model(1);
+        glm::mat4 model = earth.BaseModel();
         glm::mat4 view = glm::lookAt(camera.Position(), {0.0f, 0.0f, 0.0f}, camera.Up());
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom()), float(screenWidth) / float(screenHeight), 0.1f, 100.0f);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(sphereModel));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
 
         glBindTexture(GL_TEXTURE_2D, textures[3]);
 
-		glBindVertexArray(VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glDrawElements(GL_TRIANGLES, numIdxSphere, GL_UNSIGNED_INT, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+        earth.DrawSphere();
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -242,8 +205,6 @@ int main()
 	}
 
 	// properly de-allocate all resources
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
     releaseTextures();
 
 	glfwTerminate();
@@ -310,82 +271,3 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, screenWidth, screenHeight);
 }
 
-int bindUnitSphere(GLuint VAO, GLuint VBO, GLuint EBO, int sectorCount, int stackCount)
-{
-    // Reference: http://www.songho.ca/opengl/gl_sphere.html
-    std::vector<Vertex> vertices;
-
-    float x, y, z, xy;                              // vertex position
-    float s, t;                                     // vertex texCoord
-
-    float sectorStep = 2 * PI / sectorCount;
-    float stackStep = PI / stackCount;
-    float sectorAngle, stackAngle;
-
-    for (int i = 0; i <= stackCount; ++i) {
-        stackAngle = PI / 2 - i * stackStep;        // starting from pi/2 to -pi/2
-        xy = cosf(stackAngle);             // r * cos(u)
-        z = sinf(stackAngle);              // r * sin(u)
-
-        // add (sectorCount+1) vertices per stack
-        // the first and last vertices have same position and normal, but different tex coords
-        for (int j = 0; j <= sectorCount; ++j)     {
-            sectorAngle = j * sectorStep;           // starting from 0 to 2pi
-
-            // vertex position (x, y, z)
-            x = xy * cosf(sectorAngle);             // r * cos(u) * cos(v)
-            y = xy * sinf(sectorAngle);             // r * cos(u) * sin(v)
-            s = (float)j / sectorCount;
-            t = (float)i / stackCount;
-            vertices.emplace_back(x, y, z, x, y, z, s, t);
-        }
-    }
-
-    std::vector<TriFace> faces;
-    int k1, k2;
-    for (int i = 0; i < stackCount; ++i) {
-        k1 = i * (sectorCount + 1);     // beginning of current stack
-        k2 = k1 + sectorCount + 1;      // beginning of next stack
-
-        for (int j = 0; j < sectorCount; ++j, ++k1, ++k2)     {
-            // 2 triangles per sector excluding first and last stacks
-            // k1 => k2 => k1+1
-            if (i != 0)         {
-                faces.emplace_back(k1, k2, k1 + 1);
-            }
-
-            // k1+1 => k2 => k2+1
-            if (i != (stackCount - 1))         {
-                faces.emplace_back(k1 + 1, k2, k2 + 1);
-            }
-        }
-    }
-
-    glBindVertexArray(VAO);
-
-    // buffer VBO
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices.front(), GL_STATIC_DRAW);
-
-    // buffer EBO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces.size() * sizeof(TriFace), &faces.front(), GL_STATIC_DRAW);
-
-    // set vertex attribute pointers
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)0);
-    glEnableVertexAttribArray(0);
-    // normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(1);
-    // texCoord attribute
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)(6 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(2);
-
-    // unbind
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    return faces.size() * sizeof(TriFace);
-}
