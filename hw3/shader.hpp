@@ -179,6 +179,21 @@ private:
 	}
 };
 
+template <typename ... ArgTypes>
+class BaseSetShaderParams
+{
+public:
+	virtual void operator()(const GLuint& shader, const ArgTypes&...) = 0;
+};
+
+class ExampleSetShaderParams : public BaseSetShaderParams<int>
+{
+	virtual void operator()(const GLuint& shader, int example)
+	{
+		glUniform1i(glGetUniformLocation(shader, "example"), example);
+	}
+};
+
 } /* namespace cg */
 
 #endif /* CG_SHADER_H_ */

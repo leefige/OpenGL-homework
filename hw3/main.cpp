@@ -150,6 +150,12 @@ int main()
         return -4;
     }
 
+    if (!arial.LoadShaders("text.vert", "text.frag")) {
+        std::cerr << "Error creating text shaders" << std::endl;
+        glfwTerminate();
+        return -4;
+    }
+
     for (int i = 0; i < 10; i++) {
         if ((textures[i] = SOIL_load_OGL_texture(
                 (std::string("textures/") + PLANET_NAMES[i] + ".jpg").c_str(),
@@ -229,7 +235,7 @@ int main()
 
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        arial.RenderText("Hello, hw3", 25, 25, 1.5, {0.8f, 0.7f, 0.3f}, screenWidth, screenHeight);
+        arial.RenderText("Hello, hw3", 25, 25, 1.5, screenWidth, screenHeight, glm::vec3{0.8f, 0.7f, 0.3f});
 
 		// swap buffer
 		glfwSwapBuffers(window);

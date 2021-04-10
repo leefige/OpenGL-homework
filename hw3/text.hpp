@@ -27,17 +27,13 @@ struct Character
 	GLuint Advance;    // Horizontal offset to advance to next glyph
 };
 
-class Text
+/// Base class of drawing text. Override SetShaderParams to set custom Shader uniform params.
+template <typename ... ArgTypes>
+class BaseText
 {
 public:
-	explicit Text(bool useDefaultShader=true) : shader_(nullptr)
+	BaseText() : shader_(nullptr)
 	{
-		if (useDefaultShader) {
-			if ((shader_ = Shader::CreateFromStrings(defaultVert, defaultFrag)) == nullptr) {
-				throw std::runtime_error("ERROR: Text: cannot create default shaders.");
-			}
-		}
-
 		glGenVertexArrays(1, &VAO_);
 		glBindVertexArray(VAO_);
 
@@ -53,7 +49,7 @@ public:
 		glBindVertexArray(0);
 	}
 
-	virtual ~Text()
+	virtual ~BaseText()
 	{
 		glDeleteVertexArrays(1, &VAO_);
 		glDeleteBuffers(1, &VBO_);
@@ -142,14 +138,17 @@ public:
 		return true;
 	}
 
-	void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, const glm::vec3& color, int screenWidth, int screenHeight) const
+	template<typename ... Args>
+	void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, int screenWidth, int screenHeight, const Args&... params) const
 	{
 		// Activate corresponding render state
 		shader_->Use();
 
 		glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(screenWidth), 0.0f, static_cast<GLfloat>(screenHeight));
 		glUniformMatrix4fv(glGetUniformLocation(shader_->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-		glUniform3f(glGetUniformLocation(shader_->Program(), "textColor"), color.x, color.y, color.z);
+
+		// set custom params
+		SetShaderParams(params...);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindVertexArray(VAO_);
@@ -193,10 +192,19 @@ public:
 			glDisable(GL_BLEND);
 
 			// Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-			x += (ch.Advance >> 6) * scale; // Bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+			// Bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+			x += (ch.Advance >> 6) * scale;
 		}
 		glBindVertexArray(0);
 		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+
+protected:
+	virtual void SetShaderParams(const ArgTypes&...) const = 0;
+
+	GLint GetParamLocation(const GLchar* const name) const
+	{
+		return glGetUniformLocation(shader_->Program(), name);
 	}
 
 private:
@@ -204,28 +212,19 @@ private:
 	GLuint VBO_;
 	std::unique_ptr<Shader> shader_;
 	std::map<GLchar, Character> characters_;
+};
 
+/// Draw text with pure color.
+class Text : public BaseText<glm::vec3>
+{
 public:
-	static constexpr auto defaultVert = 
-		"#version 330 core\n"
-		"// <vec2 pos, vec2 tex>\n"
-		"layout(location = 0) in vec4 vertex;"
-		"out vec2 TexCoords;"
-		"uniform mat4 projection;"
-		"void main() {"
-		"    gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);"
-		"    TexCoords = vec2(vertex.z, 1.0f - vertex.w); }"
-	;
-	static constexpr auto defaultFrag = 
-		"#version 330 core\n"
-		"in vec2 TexCoords;"
-		"out vec4 color;"
-		"uniform sampler2D text;"
-		"uniform vec3 textColor;"
-		"void main() {"
-		"    vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);"
-		"    color = vec4(textColor, 1.0) * sampled; }"
-	;
+	Text() : BaseText<glm::vec3>() {}
+
+protected:
+	virtual void SetShaderParams(const glm::vec3& color) const
+	{
+		glUniform3f(GetParamLocation("textColor"), color.x, color.y, color.z);
+	}
 };
 
 } /* namespace cg */
