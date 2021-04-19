@@ -139,12 +139,11 @@ public:
 	}
 
 	template<typename ... Args>
-	void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, int screenWidth, int screenHeight, const Args&... params) const
+	void RenderText(std::string text, GLfloat x, GLfloat y, GLfloat scale, glm::mat4 projection, const Args&... params) const
 	{
 		// Activate corresponding render state
 		shader_->Use();
 
-		glm::mat4 projection = glm::ortho(0.0f, static_cast<GLfloat>(screenWidth), 0.0f, static_cast<GLfloat>(screenHeight));
 		glUniformMatrix4fv(glGetUniformLocation(shader_->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 		// set custom params
