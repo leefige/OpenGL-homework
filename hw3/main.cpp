@@ -30,6 +30,9 @@ int screenHeight = 600;
 
 GLfloat speed = 0.5f;
 
+bool showNames = true;
+bool showText = true;
+
 
 // normalized coordinates
 constexpr GLfloat vertices[] = {
@@ -75,7 +78,7 @@ constexpr const float PLANET_ORB[] = {
     140,
     200,
     270,
-    3.9f
+    4.5f
 };
 
 constexpr const float PLANET_SPEED[] = {
@@ -292,13 +295,22 @@ int main()
             glBindTexture(GL_TEXTURE_2D, 0);
 
         }
-        for (int i = 0; i < 10; i++) {
-            const auto& pos = i < 9 ? positions[i] : positions[i] + positions[3];
-            auto textPos = view * glm::vec4{pos.x, pos.y, pos.z, 1.0f};
-            arial.RenderText(PLANET_NAMES[i], textPos.x - 30.0f, TEXT_Y[i], 0.5f, UIprojection, glm::vec3{0.6f, 0.9f, 0.6f});
+
+        if (showNames) {
+            for (int i = 0; i < 10; i++) {
+                const auto& pos = i < 9 ? positions[i] : positions[i] + positions[3];
+                auto textPos = view * glm::vec4{pos.x, pos.y, pos.z, 1.0f};
+                arial.RenderText(PLANET_NAMES[i], textPos.x - 30.0f, TEXT_Y[i], 0.5f, UIprojection, glm::vec3{0.6f, 0.9f, 0.6f});
+            }
         }
 
-        arial.RenderText("Hello, hw3", screenOrigin.x + 25, screenOrigin.y + 25, 1.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+        if (showText) {
+            arial.RenderText("Use A/D to rotate the camera around the Sun.", screenOrigin.x + 25, screenOrigin.y + 145, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Use <-/-> ARROW keys to speed down/up.", screenOrigin.x + 25, screenOrigin.y + 115, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText(std::string("Current speed is ") + std::to_string(speed) + ".", screenOrigin.x + 25, screenOrigin.y + 85, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press Ctrl to turn on/off planet names.", screenOrigin.x + 25, screenOrigin.y + 55, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press Enter to turn on/off the usage text.", screenOrigin.x + 25, screenOrigin.y + 25, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+        }
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -318,8 +330,23 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     // exit when pressing ESC
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
-    }
-    else if (key >= 0 && key < 1024) {
+    } else if ((key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL) && action == GLFW_PRESS) {
+        showNames = !showNames;
+    } else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+        showText = !showText;
+    } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
+        auto res = speed + 0.1;
+        if (res > 1) {
+            res = 1;
+        }
+        speed = res;
+    } else if (key == GLFW_KEY_LEFT&& action == GLFW_PRESS) {
+        auto res = speed - 0.1;
+        if (res < 0) {
+            res = 0;
+        }
+        speed = res;
+    } else if (key >= 0 && key < 1024) {
         if (action == GLFW_PRESS) {
             keys[key] = true;
         } else if (action == GLFW_RELEASE) {
@@ -331,12 +358,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 void moveCamera(GLfloat deltaTime)
 {
     // Camera controls
-    if (keys[GLFW_KEY_W]) {
-        camera.ProcessKeyboard(Camera::Movement::FORWARD, deltaTime);
-    }
-    if (keys[GLFW_KEY_S]) {
-        camera.ProcessKeyboard(Camera::Movement::BACKWARD, deltaTime);
-    }
     if (keys[GLFW_KEY_A]) {
         camera.ProcessKeyboard(Camera::Movement::LEFT, deltaTime);
     }
