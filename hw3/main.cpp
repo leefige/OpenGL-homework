@@ -80,7 +80,7 @@ GLuint textures[10]{0};
 
 std::array<glm::vec3, 10> positions;
 
-Camera camera({0, 0, 150}, {0, 0, -1}, 10);
+Camera camera({0, 0, 150}, {0, 0, -1}, 20);
 
 bool keys[1024]{false};
 
@@ -122,6 +122,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
     glfwSetKeyCallback(window, keyCallback);
     glfwSetScrollCallback(window, scrollCallback);
+    //glfwSetCursorPosCallback(window, mouseCallback);
 
 
 	// ---------------------------------------------------------------
@@ -195,9 +196,9 @@ int main()
 
     // init positions
     for (int i = 0; i < 9; i++) {
-        positions[i] = glm::vec3{PLANET_ORB[i] * 3 + 14.5f, 0, 0};
+        positions[i] = glm::vec3{PLANET_ORB[i] * 3 + 14.2f, 0, 0};
     }
-    positions[9] = positions[3] + glm::vec3{PLANET_ORB[9] + 0.4f, 0, 0};
+    positions[9] = glm::vec3{PLANET_ORB[9] + 0.3f, 0, 0};
 
 	while (glfwWindowShouldClose(window) == 0) {
         // Calculate deltatime of current frame
@@ -229,11 +230,13 @@ int main()
             if (i < 9) {
                 positions[i] = rotateAround(positions[i], glm::vec3(0.0f), deltaTime * 5.0f);
             } else {
-                positions[i] = rotateAround(positions[i], positions[3], deltaTime * 20.0f);
+                positions[i] = rotateAround(positions[i], glm::vec3(0.0f), deltaTime * 20.0f);
             }
             glm::mat4 model = planets[i].Model();
-            if (i > 0) {
+            if (i > 0 && i < 9) {
                 model = glm::translate(glm::mat4(1.0f), positions[i]) * model;
+            } else if (i == 9) {
+                model = glm::translate(glm::mat4(1.0f), positions[i] + positions[3]) * model;
             }
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
 
