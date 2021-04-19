@@ -3,6 +3,7 @@
  */
 #include <iostream>
 #include <vector>
+#include <array>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -71,10 +72,13 @@ constexpr const float PLANET_ORB[] = {
     5.20336f,
     9.53707f,
     19.19126f,
-    30.06869f
+    30.06869f,
+    0.1f
 };
 
 GLuint textures[10]{0};
+
+std::array<glm::vec3, 10> positions;
 
 Camera camera({0, 0, 150}, {0, 0, -1}, 10);
 
@@ -90,6 +94,8 @@ void moveCamera(GLfloat deltaTime);
 
 char Upper(const char& c) { return char(c - 32); }
 void releaseTextures() { glDeleteTextures(10, textures); }
+
+glm::vec3 rotateAround(glm::vec3 position, glm::vec3 origin, GLfloat angle);
 
 int main()
 {
@@ -174,7 +180,7 @@ int main()
     const std::shared_ptr<UnitSphere> unitSphere = std::make_shared<UnitSphere>(50, 50);
 
     std::vector<Sphere> planets;
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         planets.emplace_back(PLANET_RADIA[i] * 0.3f, unitSphere);
     }
 
@@ -186,6 +192,12 @@ int main()
 	// Update loop
     GLfloat deltaTime = 0.0f;    // Time between current frame and last frame
     GLfloat lastFrame = 0.0f;    // Time of last frame
+
+    // init positions
+    for (int i = 0; i < 9; i++) {
+        positions[i] = glm::vec3{PLANET_ORB[i] * 3 + 14.5f, 0, 0};
+    }
+    positions[9] = positions[3] + glm::vec3{PLANET_ORB[9] + 0.4f, 0, 0};
 
 	while (glfwWindowShouldClose(window) == 0) {
         // Calculate deltatime of current frame
@@ -207,17 +219,21 @@ int main()
 		glClearColor(red, green, blue, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// draw a triangle
 		shaderProgram->Use();
         glm::mat4 view = glm::lookAt(camera.Position(), {0.0f, 0.0f, 0.0f}, camera.Up());
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom()), float(screenWidth) / float(screenHeight), 0.1f, 1000.0f);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 10; i++) {
+            if (i < 9) {
+                positions[i] = rotateAround(positions[i], glm::vec3(0.0f), deltaTime * 5.0f);
+            } else {
+                positions[i] = rotateAround(positions[i], positions[3], deltaTime * 20.0f);
+            }
             glm::mat4 model = planets[i].Model();
             if (i > 0) {
-                model = glm::translate(glm::mat4(1.0f), {PLANET_ORB[i] * 3 + 14.5f, 0, 0}) * model;
+                model = glm::translate(glm::mat4(1.0f), positions[i]) * model;
             }
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
 
@@ -300,3 +316,9 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, screenWidth, screenHeight);
 }
 
+glm::vec3 rotateAround(glm::vec3 position, glm::vec3 origin, GLfloat angle)
+{
+    auto toward = position - origin;
+    auto res = glm::rotate(glm::mat4(1.0f), glm::radians(angle), {0, 1, 0}) * glm::vec4{toward.x, toward.y, toward.z, 1.0f};
+    return origin + glm::vec3{res.x, res.y, res.z};
+}
