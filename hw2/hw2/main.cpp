@@ -24,9 +24,9 @@ using namespace cg;
 int screenWidth = 800;
 int screenHeight = 600;
 
-std::unique_ptr<Archimedes> fireWorks = nullptr;
+std::unique_ptr<Archimedes> archi = nullptr;
 
-
+constexpr const char* const SPRITE_FILE = "Star.bmp";
 
 constexpr const GLfloat particle_quad[] = {
     0.0f, 1.0f, 0.0f, 1.0f,
@@ -55,7 +55,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window
-	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "My OpenGL project", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Yifei Li - Assignment 2", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cerr << "Error creating window" << std::endl;
 		glfwTerminate();
@@ -95,13 +95,31 @@ int main()
 
     // ---------------------------------------------------------------
 
-    fireWorks = std::make_unique<Archimedes>(500, 0.5, glm::vec3(rand() % (screenWidth / 3) + screenWidth / 3 * 1, screenHeight / 4, 0),
-                                             glm::vec3(0.0, 70, 0.0), glm::vec3(0.0, -9.8, 0.0), (double)rand() / (double)RAND_MAX * 2 + 12);
+    // Load and create a texture
+
+    // Load, create texture and generate mipmaps
+    GLuint texture = SOIL_load_OGL_texture(
+        SPRITE_FILE,
+        SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT | SOIL_FLAG_TEXTURE_REPEATS
+    );
+    if (texture == 0) {
+        std::cerr << "Error loading sprite '" << SPRITE_FILE << "'" << std::endl;
+        glfwTerminate();
+        return -4;
+    }
+    // Unbind texture when done, so we won't accidentily mess up our texture.
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+
+    // ---------------------------------------------------------------
+
+    archi = std::make_unique<Archimedes>(
+        500, 0.5, glm::vec3(0, -screenHeight / 4, 0),
+        glm::vec3(0.0, 70, 0.0), glm::vec3(0.0, -9.8, 0.0), (double)rand() / (double)RAND_MAX * 2 + 12
+    );
         
-
-    
-
-
 	// ---------------------------------------------------------------
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
@@ -125,22 +143,6 @@ int main()
 	// unbind VBO & VAO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-
-
-    // ---------------------------------------------------------------
-
-    // Load and create a texture
-
-    // Load, create texture and generate mipmaps
-    GLuint texture = SOIL_load_OGL_texture(
-        "Star.bmp",
-        SOIL_LOAD_AUTO,
-        SOIL_CREATE_NEW_ID,
-        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT | SOIL_FLAG_TEXTURE_REPEATS
-    );
-
-    glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture when done, so we won't accidentily mess up our texture.
-
 
 	// ---------------------------------------------------------------
 
@@ -168,24 +170,29 @@ int main()
 		GLfloat blue = 0.1f;
 		glClearColor(red, green, blue, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        fireWorks->Process(deltaTime * 3, glm::vec3(rand() % (screenWidth / 3) + screenWidth / 3 * 1, screenHeight / 4, 0)); // apply gravity and update speed, position
-
+        
         // Draw
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-        glm::mat4 projection = glm::ortho(0.0f, GLfloat(screenWidth), 0.0f, GLfloat(screenHeight), -1.0f, 100.0f);
-        shaderProgram->Use();
-        GLint projLoc = glGetUniformLocation(shaderProgram->Program(), "projection");
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-        auto& spawner = fireWorks;
-        if (spawner->hasExploded) {
-            for (int j = 0; j < spawner->GetMassNum(); ++j) {
-                drawMass(spawner->GetMass(j), *shaderProgram, VAO, texture);
-            }
-        } else {// before explosion, only one point
-            drawMass(spawner->GetMass(0), *shaderProgram, VAO, texture);
+        glm::mat4 projection = glm::ortho(
+            -GLfloat(screenWidth) / 2,
+            GLfloat(screenWidth) / 2,
+            -GLfloat(screenHeight) / 2,
+            GLfloat(screenHeight) / 2,
+            -1.0f, 100.0f
+        );
+
+        shaderProgram->Use();
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+        auto& spawner = archi;
+
+        // let particle system update
+        spawner->Process(deltaTime * 3, {0, -screenHeight / 4, 0}); // apply gravity and update speed, position
+        // draw particle
+        for (int j = 0; j < spawner->GetMassNum(); ++j) {
+            drawMass(spawner->GetMass(j), *shaderProgram, VAO, texture);
         }
 
 		// swap buffer
@@ -195,6 +202,7 @@ int main()
 	// properly de-allocate all resources
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
+    glDeleteTextures(1, &texture);
 
 	glfwTerminate();
 	return 0;
