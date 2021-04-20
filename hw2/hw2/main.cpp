@@ -24,6 +24,8 @@ using namespace cg;
 int screenWidth = 800;
 int screenHeight = 600;
 
+float spriteScale = 10.0f;
+
 std::unique_ptr<Archimedes> archi = nullptr;
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
@@ -155,7 +157,7 @@ int main()
 	// Update loop
 	while (glfwWindowShouldClose(window) == 0) {
         // Calculate deltatime of current frame
-        GLfloat currentFrame = glfwGetTime();
+        GLfloat currentFrame = GLfloat(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
@@ -230,6 +232,7 @@ void drawMass(const Mass& mass, const Shader& shader, GLuint VAO, GLuint texture
 {
     glUniform2fv(glGetUniformLocation(shader.Program(), "offset"), 1, glm::value_ptr(mass.position));
     glUniform4fv(glGetUniformLocation(shader.Program(), "color"), 1, glm::value_ptr(mass.color));
+    glUniform1f(glGetUniformLocation(shader.Program(), "scale"), spriteScale);
 
     glBindTexture(GL_TEXTURE_2D, texture);
     glBindVertexArray(VAO);

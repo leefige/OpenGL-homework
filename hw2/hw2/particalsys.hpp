@@ -205,7 +205,8 @@ public:
 
 		if (hasExploded) {
 			for (int i = 0; i < massNum; ++i) {
-				masses[i].color.a -= masses[i].fadeSpeed * dt; // here alpha is transparency
+				// here alpha is transparency
+				masses[i].color.a -= float(masses[i].fadeSpeed * dt);
 				if (masses[i].color.a < 0) masses[i].color.a = 0;
 			}
 		}
