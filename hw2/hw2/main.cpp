@@ -21,12 +21,12 @@
 using namespace cg;
 
 // window settings
-int screenWidth = 800;
-int screenHeight = 600;
+int screenWidth = 1920;
+int screenHeight = 1080;
 
-float spriteScale = 10.0f;
+float spriteScale = 80;
 
-std::unique_ptr<Archimedes> archi = nullptr;
+std::vector<std::unique_ptr<ArchimedesRad> > archs;
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
 
@@ -117,10 +117,9 @@ int main()
 
     // ---------------------------------------------------------------
 
-    archi = std::make_unique<Archimedes>(
-        500, 0.5, glm::vec3(0, -screenHeight / 4, 0),
-        glm::vec3(0.0, 70, 0.0), glm::vec3(0.0, -9.8, 0.0), (double)rand() / (double)RAND_MAX * 2 + 12
-    );
+    for (int i = 0; i < 360; i += 30) {
+        archs.emplace_back(std::make_unique<ArchimedesRad>(4, glm::vec3(0, 0, 0), 5, i, 30));
+    }
         
 	// ---------------------------------------------------------------
 
@@ -154,6 +153,10 @@ int main()
     GLfloat deltaTime = 0.0f;
     GLfloat lastFrame = 0.0f;
 
+    Mass origin;
+    origin.color = glm::vec4(1.0f);
+    origin.position = glm::vec3(-0.1f);
+
 	// Update loop
 	while (glfwWindowShouldClose(window) == 0) {
         // Calculate deltatime of current frame
@@ -167,15 +170,12 @@ int main()
 		/* your update code here */
 	
 		// draw background
-		GLfloat red = 0.1f;
-		GLfloat green = 0.1f;
-		GLfloat blue = 0.1f;
-		glClearColor(red, green, blue, 1.0f);
+		glClearColor(0, 0, 0, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         // Draw
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glBlendFunc(GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR);
 
         glm::mat4 projection = glm::ortho(
             -GLfloat(screenWidth) / 2,
@@ -188,13 +188,15 @@ int main()
         shaderProgram->Use();
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-        auto& spawner = archi;
+        drawMass(origin, *shaderProgram, VAO, texture);
 
-        // let particle system update
-        spawner->Process(deltaTime * 3, {0, -screenHeight / 4, 0}); // apply gravity and update speed, position
-        // draw particle
-        for (int j = 0; j < spawner->GetMassNum(); ++j) {
-            drawMass(spawner->GetMass(j), *shaderProgram, VAO, texture);
+        for (auto& spawner : archs) {
+            // let particle system update
+            spawner->Process(deltaTime * 3, {0, 0, 0}); // apply gravity and update speed, position
+            // draw particle
+            for (int j = 0; j < spawner->GetMassNum(); ++j) {
+                drawMass(spawner->GetMass(j), *shaderProgram, VAO, texture);
+            }
         }
 
 		// swap buffer

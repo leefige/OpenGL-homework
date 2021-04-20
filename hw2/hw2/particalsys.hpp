@@ -14,23 +14,21 @@
 namespace cg
 {
 
-constexpr const double PI = 3.14159265358979;
-
 class Mass
 {
 public:
-	double mass;
+	float mass;
 	glm::vec3 position;
 	glm::vec3 speed;
 	glm::vec3 force;
 	glm::vec4 color;
-	double fadeSpeed;
-	double life;
+	float fadeSpeed;
+	float life;
 
 public:
 	Mass() : mass(0), speed(0), position(0), force(0), color(0), fadeSpeed(0), life(0) { }
 
-	Mass(double mass, glm::vec3 position, glm::vec3 speed, double life) : color(0), force(0), fadeSpeed(0)
+	Mass(float mass, glm::vec3 position, glm::vec3 speed, float life) : color(0), force(0), fadeSpeed(0)
 	{
 		this->mass = mass;
 		this->position = position;
@@ -48,7 +46,7 @@ public:
 	 * speed += (F/m) * dt
 	 * position += speed * dt
 	*/
-	void Update(double dt)
+	void Update(float dt)
 	{
 		speed += force / GLfloat(mass) * GLfloat(dt);
 		position += speed * GLfloat(dt);
@@ -61,7 +59,7 @@ public:
 
 	virtual void Apply() { };
 
-	void Process(double dt)
+	void Process(float dt)
 	{
 		Init();
 		Apply();
@@ -76,7 +74,7 @@ protected:
 	std::vector<Mass> masses;
 
 public:
-	BunchOfMass(int massNum, double m, glm::vec3 position, glm::vec3 speed, double life) : massNum(massNum)
+	BunchOfMass(int massNum, float m, glm::vec3 position, glm::vec3 speed, float life) : massNum(massNum)
 	{
 		masses.reserve(massNum);
 		for (int i = 0; i < massNum; ++i) {
@@ -87,6 +85,11 @@ public:
 	virtual ~BunchOfMass()
 	{
 		masses.clear();
+	}
+
+	Mass& operator[](int idx)
+	{
+		return masses[idx];
 	}
 
 	const Mass& GetMass(int idx) const
@@ -103,15 +106,14 @@ public:
 
 	virtual void Apply() = 0;
 
-	virtual void Update(double dt, glm::vec3 newpos)
+	virtual void Update(float dt, glm::vec3 newpos)
 	{
 		for (int i = 0; i < massNum; ++i) {
-			
 			masses[i].Update(dt); 
 		}
 	}
 
-	void Process(double dt, glm::vec3 newpos)
+	void Process(float dt, glm::vec3 newpos)
 	{
 		Init(); // set force to zero
 		Apply(); // apply force (add force)
@@ -119,45 +121,56 @@ public:
 	}
 };
 
-class Archimedes : public BunchOfMass
+// =======================================================================================
+
+class ArchimedesRad : public BunchOfMass
 {
-	glm::vec3 gravAcceleratio, constGravAcceleratio;
-	double lifeLeft;
-
-	glm::vec3 initialSpeed;
 	glm::vec3 initialPosition;
-	double initialLife;
+	glm::vec3 initialSpeed;
+	float initialLife;
+	float fadeSpeed;
+
+	float myLife;
+
+	float period;
+	float myRad;
+	float myDegree;
+	glm::vec3 myColor;
 
 public:
-	bool hasExploded;
-
-public:
-	/* massNum: each firework consists of massNum particle
-	 * mass: each particle's mass
+	/* massNum: each rad consists of massNum particle
 	 * position: initial position
 	 * speed: initial speed
 	 * gravity: gravity is (0, -9.8, 0)
 	 * lifeValue: existing time in seconds
 	*/
-	Archimedes(int massNum, double m, glm::vec3 position, glm::vec3 speed,
-			 glm::vec3 gravity, double lifeValue) :
-		BunchOfMass(massNum, m, position, speed, lifeValue), hasExploded(false)
+	ArchimedesRad(int massNum, glm::vec3 position, float speed, float degree, float period) :
+		BunchOfMass(massNum, 1, position, glm::vec3{0}, period),
+		period(period), initialLife(period),
+		myRad(glm::radians(degree)), myDegree(degree)
 	{
-		gravAcceleratio = gravity;
-		constGravAcceleratio = gravity;
-		lifeLeft = lifeValue;
+		initialPosition = glm::vec3{position.x, position.y, degree};
 
-		initialPosition = position;
-		initialSpeed = speed;
-		initialLife = lifeLeft;
+		fadeSpeed = 1. / initialLife;
 
-		double r = rand() % 255;
-		double g = rand() % 255;
-		double b = rand() % 255;
-		for (int i = 0; i < massNum; ++i) 		{
-			masses[i].color = glm::vec4(r / 255., g / 255., b / 255., 1.0);
-			masses[i].fadeSpeed = rand() % 2 ? 50 / 255. : 40 / 255.;
-			masses[i].life = lifeLeft;
+		myLife = period - degree / 360.0f;
+
+		glm::vec3 dir = glm::vec3(cos(myRad), sin(myRad), 0);
+		dir = glm::normalize(dir);
+		initialSpeed = dir * float(speed);
+
+		float r = cos(myRad);
+		float g = cos(myRad + glm::radians(120.0));
+		float b = cos(myRad - glm::radians(120.0));
+
+		myColor = glm::vec3{r, g, b};
+
+		for (int i = 0; i < massNum; ++i) {
+			resetMass(
+				masses[i],
+				initialPosition + initialSpeed * period * (i + degree / 360.0f),
+				initialLife - period * (i + degree / 360.0f + 1)
+			);
 		}
 	}
 
@@ -168,62 +181,57 @@ public:
 
 	virtual void Apply()
 	{
-		for (int i = 0; i < massNum; ++i) // apply gravity
-		{
-			masses[i].ApplyForce(gravAcceleratio * GLfloat(masses[i].mass));
-		}
+		//for (int i = 0; i < massNum; ++i) // apply gravity
+		//{
+		//	masses[i].ApplyForce(gravAcceleratio * GLfloat(masses[i].mass));
+		//}
 
-		if (!hasExploded && masses[0].speed[1] < 10) // time to explode
-		{
-			for (int i = 0; i < massNum; ++i) // simulate uniform spray
-			{
-				double radius = rand() % 30;
-				double angle1 = rand() % 360;
-				double angle2 = rand() % 360;
-
-				//a random direction
-				glm::vec3 dir = glm::vec3(radius * cos(angle2 * PI / 180) * cos(angle1 * PI / 180),
-										  radius * cos(angle2 * PI / 180) * sin(angle1 * PI / 180),
-										  radius * sin(angle2 * PI / 180));
-				dir = glm::normalize(dir);
-				dir *= 10;
-
-				gravAcceleratio = glm::vec3(0, 0, 0);
-				masses[i].speed = glm::vec3(0, 0, 0);
-				masses[i].speed += dir;
-				hasExploded = true;
-			}
-		}
+		//for (int i = 0; i < massNum; ++i) // simulate uniform spray
+		//{
+		//	
+		//}
 	}
 
-	virtual void Update(double dt, glm::vec3 newPos)
+	virtual void Update(float dt, glm::vec3 newPos)
 	{
 		// update speed and position
 		BunchOfMass::Update(dt, newPos);
 
-		lifeLeft -= dt;
+		myLife -= dt;
 
-		if (hasExploded) {
-			for (int i = 0; i < massNum; ++i) {
-				// here alpha is transparency
-				masses[i].color.a -= float(masses[i].fadeSpeed * dt);
-				if (masses[i].color.a < 0) masses[i].color.a = 0;
+		for (int i = 0; i < massNum; ++i) {
+			// here alpha is transparency
+			masses[i].color.a -= float(masses[i].fadeSpeed * dt);
+			if (masses[i].color.a < 0) {
+				masses[i].color.a = 0;
 			}
 		}
-		if (lifeLeft < 1e-2) // revive
-		{
-			double r = rand() % 255;
-			double g = rand() % 255;
-			double b = rand() % 255;
+
+		// revive
+		
+		if (myLife < 1e-2) {
 			for (int i = 0; i < massNum; ++i) {
-				masses[i].speed = initialSpeed;
-				masses[i].color = glm::vec4(r / 255., g / 255., b / 255., 1.0);
-				masses[i].position = newPos;
+				std::cout << i << " revive" << std::endl;
+				int j = (i + 1) % massNum;
+				resetMass(
+					masses[i],
+					initialPosition + initialSpeed * period * (j + myDegree / 360.0f),
+					initialLife - period * (j + myDegree / 360.0f + 1)
+				);
 			}
-			gravAcceleratio = constGravAcceleratio;
-			lifeLeft = initialLife;
-			hasExploded = false;
+			myLife = period;
 		}
+	}
+
+	void resetMass(Mass& mass, const glm::vec3& pos, float life)
+	{
+		mass.color = glm::vec4{myColor.r, myColor.g, myColor.b, life / initialLife};
+		mass.fadeSpeed = fadeSpeed;
+		mass.life = life;
+		mass.speed = initialSpeed;
+
+		mass.position = pos;
+		mass.life = life;
 	}
 };
 
