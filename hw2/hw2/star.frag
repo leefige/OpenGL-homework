@@ -16,6 +16,6 @@ void main(){
     if ((texColor.r + texColor.g + texColor.b) < 1.0f) {
         discard;
     }
-    color = texColor * ParticleColor;
+    color = texColor + ParticleColor - 0.6f;
 }
 

@@ -29,13 +29,7 @@
     <ClInclude Include="shader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="particalsys.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="archimedes.hpp">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="logarithmic.hpp">
+    <ClInclude Include="spirals.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

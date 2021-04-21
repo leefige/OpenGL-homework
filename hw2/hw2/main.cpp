@@ -16,8 +16,7 @@
 #include FT_FREETYPE_H
 
 #include "shader.hpp"
-#include "archimedes.hpp"
-#include "logarithmic.hpp"
+#include "spirals.hpp"
 
 using namespace cg;
 
@@ -27,8 +26,8 @@ int screenHeight = 768;
 
 float spriteScale = 80;
 
-Spiral<ArchimedesRad> archi(24, 5, spriteScale, 30, 3);
-LogarithmicSpiral logar(4, 10, 0.45, 24, 18, 80);
+ArchimedesSpiral archi(3, 24, 15, 80, 50);
+LogarithmicSpiral logar(4, 24, 15, 80, 10, 0.45);
 
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
@@ -177,7 +176,7 @@ int main()
         
         // Draw
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
         glm::mat4 projection = glm::ortho(
             -GLfloat(screenWidth) / 2,
@@ -190,7 +189,7 @@ int main()
         shaderProgram->Use();
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "pv"), 1, GL_FALSE, glm::value_ptr(projection * view));
 
-        archi.Process(deltaTime, {0, 0, 0});
+        archi.Update(deltaTime);
         logar.Update(deltaTime);
 
         logar.Draw(*shaderProgram, VAO, texture);
