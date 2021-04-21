@@ -32,6 +32,7 @@ GLfloat speed = 0.5f;
 
 bool showNames = true;
 bool showText = true;
+bool englFont = false;
 
 
 // normalized coordinates
@@ -95,16 +96,16 @@ constexpr const float PLANET_SPEED[] = {
 };
 
 constexpr const float TEXT_Y[] = {
-    90,
-    40,
-    -40,
-    60,
-    -50,
+    130,
+    50,
+    -60,
     70,
-    60,
-    60,
-    60,
-    -40
+    -70,
+    90,
+    70,
+    70,
+    70,
+    -50
 };
 
 GLuint textures[10]{0};
@@ -115,7 +116,7 @@ std::array<glm::vec4, 10> textPos;
 
 Camera camera({0, 0, 100}, {0, 0, -1}, 20);
 
-GLfloat sizeFactor = 4;
+GLfloat sizeFactor = 5;
 
 bool keys[1024]{false};
 
@@ -193,6 +194,19 @@ int main()
     }
 
     if (!arial.LoadShaders("text.vert", "text.frag")) {
+        std::cerr << "Error creating text shaders" << std::endl;
+        glfwTerminate();
+        return -4;
+    }
+
+    Text oldengl;
+    if (!oldengl.LoadFont("Germanica.ttf")) {
+        std::cerr << "Error loading font '" << "oldengl.TTF" << "'" << std::endl;
+        glfwTerminate();
+        return -4;
+    }
+
+    if (!oldengl.LoadShaders("text.vert", "text.frag")) {
         std::cerr << "Error creating text shaders" << std::endl;
         glfwTerminate();
         return -4;
@@ -296,19 +310,24 @@ int main()
 
         }
 
+        const Text& text = englFont ? oldengl : arial;
+
         if (showNames) {
             for (int i = 0; i < 10; i++) {
                 const auto& pos = i < 9 ? positions[i] : positions[i] + positions[3];
                 auto textPos = view * glm::vec4{pos.x, pos.y, pos.z, 1.0f};
-                arial.RenderText(PLANET_NAMES[i], textPos.x - 30.0f, TEXT_Y[i], 0.5f, UIprojection, glm::vec3{0.6f, 0.9f, 0.6f});
+                auto name = std::string(PLANET_NAMES[i]);
+                name[0] = Upper(name[0]);
+                text.RenderText(name, textPos.x - 30.0f, TEXT_Y[i], 0.5f, UIprojection, glm::vec3{0.6f, 0.9f, 0.6f});
             }
         }
 
         if (showText) {
-            arial.RenderText("Use A/D to rotate the camera around the Sun.", screenOrigin.x + 25, screenOrigin.y + 145, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
-            arial.RenderText("Use <-/-> ARROW keys to speed down/up.", screenOrigin.x + 25, screenOrigin.y + 115, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
-            arial.RenderText(std::string("Current speed is ") + std::to_string(speed) + ".", screenOrigin.x + 25, screenOrigin.y + 85, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
-            arial.RenderText("Press Ctrl to turn on/off planet names.", screenOrigin.x + 25, screenOrigin.y + 55, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Use A/D to rotate the camera around the Sun.", screenOrigin.x + 25, screenOrigin.y + 175, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Use <-/-> ARROW keys to speed down/up.", screenOrigin.x + 25, screenOrigin.y + 145, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText(std::string("Current speed is ") + std::to_string(speed) + ".", screenOrigin.x + 25, screenOrigin.y + 115, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press Ctrl to turn on/off planet names.", screenOrigin.x + 25, screenOrigin.y + 85, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press F to change planet name font.", screenOrigin.x + 25, screenOrigin.y + 55, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
             arial.RenderText("Press Enter to turn on/off the usage text.", screenOrigin.x + 25, screenOrigin.y + 25, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
         }
 
@@ -334,6 +353,8 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
         showNames = !showNames;
     } else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
         showText = !showText;
+    } else if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+        englFont = !englFont;
     } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
         auto res = speed + 0.1;
         if (res > 1) {
