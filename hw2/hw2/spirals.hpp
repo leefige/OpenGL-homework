@@ -1,7 +1,6 @@
 #ifndef CG_SPIRALS_H_
 #define CG_SPIRALS_H_
 
-#include <memory>
 #include <deque>
 
 #include <glad/glad.h>
@@ -44,7 +43,7 @@ public:
 		float b = cos(rad - glm::radians(120.0)) / 2 + 0.5;
 		color = glm::vec4{r, g, b, 1.0f};
 
-		fadeSpeed = 1.0f / life;
+		fadeSpeed = 1.0f / life * 1.5f;
 
 		direction = glm::normalize(glm::vec3(
 			cos(rad),
@@ -181,7 +180,7 @@ public:
 	virtual void Init(float offset, float rad, float life)
 	{
 		Particle::Init(offset, rad, life);
-		speed = speedFactor * position;
+		speed = speedFactor * glm::length(position) * direction;
 	}
 
 	/*
@@ -190,9 +189,8 @@ public:
 	virtual void Update(float dt)
 	{
 		Particle::Update(dt);
-		speed = speedFactor * position;
+		speed = speedFactor * glm::length(position) * direction;
 	}
-
 };
 
 class LogarithmicSpiral : public Spiral
@@ -229,8 +227,6 @@ protected:
 			return new LogParticle(A, currentRad, initLife, angularVelocity * B);
 		}
 	}
-
-	
 };
 
 // ===============================================================================
@@ -285,6 +281,117 @@ protected:
 			return new ArchiParticle(0, currentRad, initLife, speed);
 		}
 	}
+};
+
+// ===============================================================================
+
+class FermaParticle : public Particle
+{
+	float speedFactor;
+
+public:
+	FermaParticle(float offset, float rad, float life, float speedFactor) :
+		Particle(offset, rad, life),
+		speedFactor(speedFactor)
+	{
+		Init(offset, rad, life);
+	}
+
+	virtual void Init(float offset, float rad, float life)
+	{
+		Particle::Init(offset, rad, life);
+		speed = speedFactor / glm::length(position) * direction;
+	}
+
+	/*
+	 * dr/dt = \alpha*a^2/r
+	 */
+	virtual void Update(float dt)
+	{
+		Particle::Update(dt);
+		speed = speedFactor / glm::length(position) * direction;
+	}
+};
+
+
+class FermatSpiral : public Spiral
+{
+	float A;
+	float initOffset;
+
+public:
+	FermatSpiral(float period, int nRad, float life, float scale, float A, float initOffset) :
+		Spiral(period, nRad, life, scale),
+		A(A),
+		initOffset(initOffset)
+	{
+	}
+
+	virtual void Update(float dt)
+	{
+		for (auto& m : emitted) {
+			m->Update(dt);
+		}
+
+		// check dead mass
+		while (emitted.size() > 0 && emitted.front()->life < 1e-2) {
+			auto& front = emitted.front();
+			emitted.pop_front();
+			available.push_back(front);
+		}
+
+		countdown -= dt;
+		currentRad += angularVelocity * dt;
+		if (currentRad > 2 * PI) {
+			currentRad -= 2 * PI;
+		}
+
+		// gen new mass
+		if (countdown < 1e-2) {
+			emitted.push_back(newMassPositive());
+			emitted.push_back(newMassNegative());
+			countdown = emitInterval;
+		}
+	}
+
+private:
+	void resetMass(FermaParticle* mass, float offset, float rad)
+	{
+		mass->Init(offset, rad, initLife);
+	}
+
+	Particle* newMassPositive()
+	{
+		if (available.size() > 0) {
+			auto ret = dynamic_cast<FermaParticle*>(available.front());
+			available.pop_front();
+
+			// reset
+			resetMass(ret, initOffset, currentRad);
+
+			return ret;
+		} else {
+			return new FermaParticle(initOffset, currentRad, initLife, angularVelocity * A * A / 2);
+		}
+	}
+
+	Particle* newMassNegative()
+	{
+		if (available.size() > 0) {
+			auto ret = dynamic_cast<FermaParticle*>(available.front());
+			available.pop_front();
+
+			// reset
+			resetMass(ret, -initOffset, currentRad);
+
+			return ret;
+		} else {
+			return new FermaParticle(-initOffset, currentRad, initLife, -angularVelocity * A * A / 2);
+		}
+	}
+
+protected:
+	virtual Particle* newMass() { return nullptr; }
 };
 
 }

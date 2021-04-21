@@ -21,14 +21,15 @@
 using namespace cg;
 
 // window settings
-int screenWidth = 1024;
-int screenHeight = 768;
+int screenWidth = 1280;
+int screenHeight = 960;
 
 float spriteScale = 80;
+float period = 4;
 
-ArchimedesSpiral archi(3, 24, 15, 80, 50);
-LogarithmicSpiral logar(4, 24, 15, 80, 10, 0.45);
-
+ArchimedesSpiral archi(period, 24, 15, spriteScale, 50);
+LogarithmicSpiral logar(period, 24, 15, spriteScale, 10, 0.45);
+FermatSpiral ferma(period, 12, 6, spriteScale, 190, 50);
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
 
@@ -191,8 +192,11 @@ int main()
 
         archi.Update(deltaTime);
         logar.Update(deltaTime);
+        ferma.Update(deltaTime);
 
-        logar.Draw(*shaderProgram, VAO, texture);
+        //archi.Draw(*shaderProgram, VAO, texture);
+        //logar.Draw(*shaderProgram, VAO, texture);
+        ferma.Draw(*shaderProgram, VAO, texture);
 
 		// swap buffer
 		glfwSwapBuffers(window);
