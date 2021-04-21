@@ -46,7 +46,7 @@ public:
 	 * speed += (F/m) * dt
 	 * position += speed * dt
 	*/
-	void Update(float dt)
+	virtual void Update(float dt)
 	{
 		speed += force / GLfloat(mass) * GLfloat(dt);
 		position += speed * GLfloat(dt);
@@ -62,7 +62,6 @@ public:
 
 	void Process(float dt)
 	{
-		Init();
 		Apply();
 		Update(dt);
 	}

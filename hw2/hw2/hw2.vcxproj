@@ -149,9 +149,10 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="logarithmic.hpp" />
     <ClInclude Include="particalsys.hpp" />
     <ClInclude Include="shader.hpp" />
-    <ClInclude Include="spirals.hpp" />
+    <ClInclude Include="archimedes.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="star.frag" />

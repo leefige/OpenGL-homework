@@ -32,7 +32,10 @@
     <ClInclude Include="particalsys.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="spirals.hpp">
+    <ClInclude Include="archimedes.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="logarithmic.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
