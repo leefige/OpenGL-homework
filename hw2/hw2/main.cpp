@@ -17,6 +17,7 @@
 
 #include "shader.hpp"
 #include "spirals.hpp"
+#include "text.hpp"
 
 using namespace cg;
 
@@ -27,9 +28,25 @@ int screenHeight = 960;
 float spriteScale = 80;
 float period = 4;
 
-ArchimedesSpiral archi(period, 24, 15, spriteScale, 50);
-LogarithmicSpiral logar(period, 24, 15, spriteScale, 10, 0.45);
-FermatSpiral ferma(period, 12, 6, spriteScale, 190, 50);
+enum class DisplayMode : int
+{
+    ARCHIMEDES,
+    FERMAT,
+    LOGARITHMIC
+};
+
+ArchimedesSpiral archi(period, 24, 18, spriteScale, 50);
+LogarithmicSpiral logar(period, 24, 18, spriteScale, 10, 0.45);
+FermatSpiral ferma(period, 12, 10, spriteScale, 190, 50);
+
+constexpr const char* SPIRAL_NAMES[3] = {
+    "Archimedes",
+    "Fermat",
+    "Logarithmic",
+};
+
+DisplayMode currentMode = DisplayMode::ARCHIMEDES;
+bool showText = true;
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
 
@@ -97,6 +114,19 @@ int main()
 		glfwTerminate();
 		return -3;
 	}
+
+    Text arial;
+    if (!arial.LoadFont("arial.ttf")) {
+        std::cerr << "Error loading font '" << "arial.ttf" << "'" << std::endl;
+        glfwTerminate();
+        return -5;
+    }
+
+    if (!arial.LoadShaders("text.vert", "text.frag")) {
+        std::cerr << "Error creating text shaders" << std::endl;
+        glfwTerminate();
+        return -5;
+    }
 
     // ---------------------------------------------------------------
 
@@ -194,9 +224,25 @@ int main()
         logar.Update(deltaTime);
         ferma.Update(deltaTime);
 
-        //archi.Draw(*shaderProgram, VAO, texture);
-        //logar.Draw(*shaderProgram, VAO, texture);
-        ferma.Draw(*shaderProgram, VAO, texture);
+        switch (currentMode) {
+        case DisplayMode::ARCHIMEDES:
+            archi.Draw(*shaderProgram, VAO, texture);
+            break;
+        case DisplayMode::FERMAT:
+            ferma.Draw(*shaderProgram, VAO, texture);
+            break;
+        case DisplayMode::LOGARITHMIC:
+            logar.Draw(*shaderProgram, VAO, texture);
+            break;
+        default:
+            break;
+        }
+
+        if (showText) {
+            auto screenOrigin = glm::vec2{-static_cast<GLfloat>(screenWidth) / 2, -static_cast<GLfloat>(screenHeight) / 2};
+            arial.RenderText(std::string("Press Enter to switch spiral type. Current type: ") + SPIRAL_NAMES[static_cast<int>(currentMode)] + ".", screenOrigin.x + 25, screenOrigin.y + 55, 0.5, projection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press Ctrl to turn on/off showing this message.", screenOrigin.x + 25, screenOrigin.y + 25, 0.5, projection, glm::vec3{0.8f, 0.7f, 0.3f});
+        }
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -218,7 +264,11 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 	// exit when pressing ESC
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
-	}
+    } else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+        currentMode = static_cast<DisplayMode>((static_cast<int>(currentMode) + 1) % 3);
+    } else if ((key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL) && action == GLFW_PRESS) {
+        showText = !showText;
+    }
 }
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height)
