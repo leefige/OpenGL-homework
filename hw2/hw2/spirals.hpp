@@ -18,6 +18,7 @@ protected:
 	float myLife;
 	float myRad;
 	float myDegree;
+	glm::vec3 myDirection;
 	glm::vec3 myColor;
 
 public:
@@ -27,9 +28,9 @@ public:
 	 * gravity: gravity is (0, -9.8, 0)
 	 * lifeValue: existing time in seconds
 	*/
-	SpiralBase(int massNum, glm::vec3 position, float degree, float period) :
+	SpiralBase(int massNum, glm::vec3 position, float speed, float degree, float period) :
 		BunchOfMass(massNum, 1, position, glm::vec3{0}, period),
-		period(period), myRad(glm::radians(degree)), myDegree(degree), initialSpeed(0)
+		period(period), myRad(glm::radians(degree)), myDegree(degree)
 	{
 		initialPosition = glm::vec3{position.x, position.y, 0};
 		initialLife = period * (massNum - 1);
@@ -40,6 +41,10 @@ public:
 		float g = cos(myRad + glm::radians(120.0)) / 2 + 0.5;
 		float b = cos(myRad - glm::radians(120.0)) / 2 + 0.5;
 		myColor = glm::vec3{r, g, b};
+
+		glm::vec3 dir = glm::vec3(cos(myRad), sin(myRad), 0);
+		myDirection = glm::normalize(dir);
+		initialSpeed = myDirection * float(speed);
 	}
 
 	int GetMassNum() const
@@ -60,6 +65,68 @@ protected:
 	}
 };
 
+template<typename T>
+class Spiral
+{
+	std::vector<std::unique_ptr<SpiralBase> > rads;
+	int numMass;
+	int numRad;
+	float speed;
+	float period;
+	float spriteScale;
+
+	Mass origin;
+
+	Spiral() = delete;
+
+public:
+	explicit Spiral(int numRad, int numMass, float scale, float speed, float period) :
+		numRad(ceil(360.0f / numRad)), speed(speed), period(period), numMass(numMass), spriteScale(scale)
+	{
+		auto degree = 360.0 / numRad;
+		for (int i = 0; i < numRad; i++) {
+			rads.emplace_back(std::make_unique<T>(numMass, glm::vec3(0, 0, 0), speed, i * degree, period));
+		}
+
+		origin.color = glm::vec4(1.0f);
+		origin.position = glm::vec3(0, 0, 400.0f);
+	}
+
+	void Process(float dt, glm::vec3 newpos)
+	{
+		for (auto& spawner : rads) {
+			// let particle system update
+			spawner->Process(dt, {0, 0, 0}); // apply gravity and update speed, position
+
+		}
+	}
+
+	void Draw(const Shader& shader, GLuint VAO, GLuint texture) const
+	{
+		//drawMass(origin, shader, VAO, texture);
+		for (auto& spawner : rads) {
+			for (int j = 0; j < spawner->GetMassNum(); ++j) {
+				drawMass(spawner->GetMass(j), shader, VAO, texture);
+			}
+		}
+	}
+
+private:
+	void drawMass(const Mass& mass, const Shader& shader, GLuint VAO, GLuint texture) const
+	{
+		glUniform2fv(glGetUniformLocation(shader.Program(), "offset"), 1, glm::value_ptr(mass.position));
+		glUniform4fv(glGetUniformLocation(shader.Program(), "color"), 1, glm::value_ptr(mass.color));
+		glUniform1f(glGetUniformLocation(shader.Program(), "scale"), spriteScale);
+
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
+	}
+};
+
+// =====================================================================
+
 class ArchimedesRad : public SpiralBase
 {
 public:
@@ -70,12 +137,8 @@ public:
 	 * lifeValue: existing time in seconds
 	*/
 	ArchimedesRad(int massNum, glm::vec3 position, float speed, float degree, float period) :
-		SpiralBase(massNum, position, degree, period)
+		SpiralBase(massNum, position, speed, degree, period)
 	{
-		glm::vec3 dir = glm::vec3(cos(myRad), sin(myRad), 0);
-		dir = glm::normalize(dir);
-		initialSpeed = dir * float(speed);
-
 		for (int i = 0; i < massNum; ++i) {
 			resetMass(
 				masses[i],
@@ -120,65 +183,68 @@ public:
 };
 
 
-template<typename T>
-class Spiral
+class LogarithmicRad : public SpiralBase
 {
-	std::vector<std::unique_ptr<SpiralBase> > rads;
-	int numMass;
-	int numRad;
-	float speed;
-	float period;
-	float spriteScale;
-
-	Mass origin;
-
-	Spiral() = delete;
-
+	int next;
+	float B;
 public:
-	explicit Spiral(int numRad, int numMass, float speed, float period, float scale) :
-		numRad(ceil(360.0f / numRad)), speed(speed), period(period), numMass(numMass), spriteScale(scale)
+	/* massNum: each rad consists of massNum particle
+	 * position: initial position
+	 * speed: initial speed
+	 * gravity: gravity is (0, -9.8, 0)
+	 * lifeValue: existing time in seconds
+	*/
+	LogarithmicRad(int massNum, glm::vec3 position, float speed, float degree, float period) :
+		SpiralBase(massNum, position, speed, degree, period),
+		next(1), B(speed)
 	{
-		auto degree = 360.0 / numRad;
-		for (int i = 0; i < numRad; i++) {
-			rads.emplace_back(std::make_unique<T>(numMass, glm::vec3(0, 0, 0), speed, i * degree, period));
-		}
+		//initialSpeed = 0.3f * myDirection;
+		myLife = period * (1 - degree / 360.0f);
 
-		origin.color = glm::vec4(1.0f);
-		origin.position = glm::vec3(0, 0, 400.0f);
+		resetMass(
+			masses[0],
+			initialPosition + B * exp(B * myRad) * myDirection * (i + degree / 360.0f),
+			initialLife - period * (degree / 360.0f + 1)
+		);
+
+		masses[0].speed = B * exp(B * myRad) * myDirection;
 	}
 
-	void Process(float dt, glm::vec3 newpos)
-	{
-		for (auto& spawner : rads) {
-			// let particle system update
-			spawner->Process(dt, {0, 0, 0}); // apply gravity and update speed, position
+	virtual void Apply() {}
 
-		}
-	}
-
-	void Draw(const Shader& shader, GLuint VAO, GLuint texture) const
+	virtual void Update(float dt, glm::vec3 newPos)
 	{
-		drawMass(origin, shader, VAO, texture);
-		for (auto& spawner : rads) {
-			for (int j = 0; j < spawner->GetMassNum(); ++j) {
-				drawMass(spawner->GetMass(j), shader, VAO, texture);
+		// update speed and position
+		BunchOfMass::Update(dt, newPos);
+
+		myLife -= dt;
+
+		for (int i = 0; i < 1; ++i) {
+			// here alpha is transparency
+			masses[i].color.a -= float(masses[i].fadeSpeed * dt);
+			if (masses[i].color.a < 0) {
+				masses[i].color.a = 0;
 			}
 		}
-	}
 
-private:
-	void drawMass(const Mass& mass, const Shader& shader, GLuint VAO, GLuint texture) const
-	{
-		glUniform2fv(glGetUniformLocation(shader.Program(), "offset"), 1, glm::value_ptr(mass.position));
-		glUniform4fv(glGetUniformLocation(shader.Program(), "color"), 1, glm::value_ptr(mass.color));
-		glUniform1f(glGetUniformLocation(shader.Program(), "scale"), spriteScale);
+		// revive
 
-		glBindTexture(GL_TEXTURE_2D, texture);
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		glBindVertexArray(0);
+		if (myLife < 1e-2) {
+			resetMass(
+				masses[next],
+				initialPosition,
+				initialLife
+			);
+
+			masses[next].speed = B * exp(B * myRad) * myDirection;
+
+			next = (next + 1) % GetMassNum();
+			myLife = period;
+		}
 	}
 };
+
+
 
 
 

@@ -88,12 +88,12 @@ public:
 		masses.clear();
 	}
 
-	Mass& operator[](int idx)
+	virtual Mass& operator[](int idx)
 	{
 		return masses[idx];
 	}
 
-	const Mass& GetMass(int idx) const
+	virtual const Mass& GetMass(int idx) const
 	{
 		return masses[idx];
 	}

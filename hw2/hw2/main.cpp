@@ -24,8 +24,10 @@ using namespace cg;
 int screenWidth = 1024;
 int screenHeight = 768;
 
+float spriteScale = 80;
 
-Spiral<ArchimedesRad> archi(24, 5, 20, 5, 65);
+Spiral<ArchimedesRad> archi(24, 5, spriteScale, 30, 3);
+Spiral<LogarithmicRad> logar(30, 5, spriteScale, 0.5, 5);
 
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
@@ -174,7 +176,7 @@ int main()
         
         // Draw
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         glm::mat4 projection = glm::ortho(
             -GLfloat(screenWidth) / 2,
@@ -188,7 +190,9 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "pv"), 1, GL_FALSE, glm::value_ptr(projection * view));
 
         archi.Process(deltaTime, {0, 0, 0});
-        archi.Draw(*shaderProgram, VAO, texture);
+        logar.Process(deltaTime, {0, 0, 0});
+
+        logar.Draw(*shaderProgram, VAO, texture);
 
 		// swap buffer
 		glfwSwapBuffers(window);
