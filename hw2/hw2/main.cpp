@@ -16,7 +16,7 @@
 #include FT_FREETYPE_H
 
 #include "shader.hpp"
-#include "particalsys.hpp"
+#include "spirals.hpp"
 
 using namespace cg;
 
@@ -24,9 +24,9 @@ using namespace cg;
 int screenWidth = 1024;
 int screenHeight = 768;
 
-float spriteScale = 80;
 
-std::vector<std::unique_ptr<ArchimedesRad> > archs;
+Spiral<ArchimedesRad> archi(24, 5, 20, 5, 65);
+
 
 constexpr const char* const SPRITE_FILE = "Star.bmp";
 
@@ -44,7 +44,6 @@ constexpr const GLfloat particle_quad[] = {
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 
-void drawMass(const Mass& mass, const Shader& shader, GLuint VAO, GLuint texture);
 
 int main()
 {
@@ -123,12 +122,6 @@ int main()
     glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture when done, so we won't accidentily mess up our texture.
 
 
-    // ---------------------------------------------------------------
-
-    for (int i = 0; i < 360; i += 15) {
-        archs.emplace_back(std::make_unique<ArchimedesRad>(4, glm::vec3(0, 0, 0), 20, i, 10));
-    }
-        
 	// ---------------------------------------------------------------
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
@@ -160,10 +153,6 @@ int main()
 
     GLfloat deltaTime = 0.0f;
     GLfloat lastFrame = 0.0f;
-
-    Mass origin;
-    origin.color = glm::vec4(1.0f);
-    origin.position = glm::vec3(0, 0, 400.0f);
 
     glm::mat4 view = glm::lookAt(glm::vec3{0, 0, 10}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0});
 
@@ -198,16 +187,8 @@ int main()
         shaderProgram->Use();
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "pv"), 1, GL_FALSE, glm::value_ptr(projection * view));
 
-        drawMass(origin, *shaderProgram, VAO, texture);
-
-        for (auto& spawner : archs) {
-            // let particle system update
-            spawner->Process(deltaTime * 3, {0, 0, 0}); // apply gravity and update speed, position
-            // draw particle
-            for (int j = 0; j < spawner->GetMassNum(); ++j) {
-                drawMass(spawner->GetMass(j), *shaderProgram, VAO, texture);
-            }
-        }
+        archi.Process(deltaTime, {0, 0, 0});
+        archi.Draw(*shaderProgram, VAO, texture);
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -240,14 +221,4 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-void drawMass(const Mass& mass, const Shader& shader, GLuint VAO, GLuint texture)
-{
-    glUniform2fv(glGetUniformLocation(shader.Program(), "offset"), 1, glm::value_ptr(mass.position));
-    glUniform4fv(glGetUniformLocation(shader.Program(), "color"), 1, glm::value_ptr(mass.color));
-    glUniform1f(glGetUniformLocation(shader.Program(), "scale"), spriteScale);
 
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
-}
