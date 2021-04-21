@@ -21,8 +21,8 @@
 using namespace cg;
 
 // window settings
-int screenWidth = 1920;
-int screenHeight = 1080;
+int screenWidth = 1024;
+int screenHeight = 768;
 
 float spriteScale = 80;
 
@@ -71,6 +71,7 @@ int main()
 	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 	glfwSetKeyCallback(window, keyCallback);
 
+
 	// ---------------------------------------------------------------
 
 	// Connect GLAD to GLFW by registerring glfwGetProcAddress() as GLAD loader function,
@@ -100,25 +101,32 @@ int main()
     // Load and create a texture
 
     // Load, create texture and generate mipmaps
-    GLuint texture = SOIL_load_OGL_texture(
-        SPRITE_FILE,
-        SOIL_LOAD_AUTO,
-        SOIL_CREATE_NEW_ID,
-        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT | SOIL_FLAG_TEXTURE_REPEATS
-    );
-    if (texture == 0) {
-        std::cerr << "Error loading sprite '" << SPRITE_FILE << "'" << std::endl;
-        glfwTerminate();
-        return -4;
-    }
-    // Unbind texture when done, so we won't accidentily mess up our texture.
-    glBindTexture(GL_TEXTURE_2D, 0);
+    // Load and create a texture
+    GLuint texture;
+    // ====================
+    // Texture
+    // ====================
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture); // All upcoming GL_TEXTURE_2D operations now have effect on our texture object
+    // Set our texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);    // Set texture wrapping to GL_REPEAT
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // Set texture filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Load, create texture and generate mipmaps
+    int width, height;
+    unsigned char* image = SOIL_load_image(SPRITE_FILE, &width, &height, 0, SOIL_LOAD_RGB);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    SOIL_free_image_data(image);
+    glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture when done, so we won't accidentily mess up our texture.
 
 
     // ---------------------------------------------------------------
 
-    for (int i = 0; i < 360; i += 30) {
-        archs.emplace_back(std::make_unique<ArchimedesRad>(4, glm::vec3(0, 0, 0), 5, i, 30));
+    for (int i = 0; i < 360; i += 15) {
+        archs.emplace_back(std::make_unique<ArchimedesRad>(4, glm::vec3(0, 0, 0), 20, i, 10));
     }
         
 	// ---------------------------------------------------------------
@@ -155,7 +163,9 @@ int main()
 
     Mass origin;
     origin.color = glm::vec4(1.0f);
-    origin.position = glm::vec3(-0.1f);
+    origin.position = glm::vec3(0, 0, 400.0f);
+
+    glm::mat4 view = glm::lookAt(glm::vec3{0, 0, 10}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0});
 
 	// Update loop
 	while (glfwWindowShouldClose(window) == 0) {
@@ -175,18 +185,18 @@ int main()
         
         // Draw
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
         glm::mat4 projection = glm::ortho(
             -GLfloat(screenWidth) / 2,
             GLfloat(screenWidth) / 2,
             -GLfloat(screenHeight) / 2,
             GLfloat(screenHeight) / 2,
-            -1.0f, 100.0f
+            -1.0f, 1000.0f
         );
 
         shaderProgram->Use();
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "pv"), 1, GL_FALSE, glm::value_ptr(projection * view));
 
         drawMass(origin, *shaderProgram, VAO, texture);
 

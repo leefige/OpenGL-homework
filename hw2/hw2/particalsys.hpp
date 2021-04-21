@@ -50,6 +50,7 @@ public:
 	{
 		speed += force / GLfloat(mass) * GLfloat(dt);
 		position += speed * GLfloat(dt);
+		life -= dt;
 	}
 
 	void ApplyForce(glm::vec3 newForce)
@@ -129,10 +130,9 @@ class ArchimedesRad : public BunchOfMass
 	glm::vec3 initialSpeed;
 	float initialLife;
 	float fadeSpeed;
+	float period;
 
 	float myLife;
-
-	float period;
 	float myRad;
 	float myDegree;
 	glm::vec3 myColor;
@@ -146,22 +146,23 @@ public:
 	*/
 	ArchimedesRad(int massNum, glm::vec3 position, float speed, float degree, float period) :
 		BunchOfMass(massNum, 1, position, glm::vec3{0}, period),
-		period(period), initialLife(period),
-		myRad(glm::radians(degree)), myDegree(degree)
+		period(period), myRad(glm::radians(degree)), myDegree(degree)
 	{
-		initialPosition = glm::vec3{position.x, position.y, degree};
+		initialPosition = glm::vec3{position.x, position.y, 0};
+
+		initialLife = period * (massNum - 1);
 
 		fadeSpeed = 1. / initialLife;
 
-		myLife = period - degree / 360.0f;
+		myLife = period * (1 - degree / 360.0f);
 
 		glm::vec3 dir = glm::vec3(cos(myRad), sin(myRad), 0);
 		dir = glm::normalize(dir);
 		initialSpeed = dir * float(speed);
 
-		float r = cos(myRad);
-		float g = cos(myRad + glm::radians(120.0));
-		float b = cos(myRad - glm::radians(120.0));
+		float r = cos(myRad) / 2 + 0.5;
+		float g = cos(myRad + glm::radians(120.0)) / 2 + 0.5;
+		float b = cos(myRad - glm::radians(120.0)) / 2 + 0.5;
 
 		myColor = glm::vec3{r, g, b};
 
@@ -212,11 +213,11 @@ public:
 		if (myLife < 1e-2) {
 			for (int i = 0; i < massNum; ++i) {
 				std::cout << i << " revive" << std::endl;
-				int j = (i + 1) % massNum;
+				//int j = (i + 1) % massNum;
 				resetMass(
 					masses[i],
-					initialPosition + initialSpeed * period * (j + myDegree / 360.0f),
-					initialLife - period * (j + myDegree / 360.0f + 1)
+					initialPosition + initialSpeed * (period * i),
+					initialLife - period * i
 				);
 			}
 			myLife = period;
@@ -227,12 +228,17 @@ public:
 	{
 		mass.color = glm::vec4{myColor.r, myColor.g, myColor.b, life / initialLife};
 		mass.fadeSpeed = fadeSpeed;
-		mass.life = life;
+		mass.life = period;
 		mass.speed = initialSpeed;
 
 		mass.position = pos;
 		mass.life = life;
 	}
+};
+
+class Archimedes
+{
+
 };
 
 }
