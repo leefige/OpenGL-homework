@@ -24,11 +24,14 @@ int screenWidth = 800;
 int screenHeight = 600;
 
 // normalized coordinates
-constexpr GLfloat vertices[] = {
-	// Positions        // Colors
-	0.5f,  -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,  // Bottom Right
-	-0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,  // Bottom Left
-	0.0f,  0.5f,  0.0f, 0.0f, 0.0f, 1.0f   // Top 
+constexpr GLfloat background[] = {
+	// Positions        // tex coord
+    -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,  // Top Left
+    0.5f,   0.5f,  0.0f, 1.0f, 1.0f,  // Top Right
+    0.5f,  -0.5f,  0.0f, 1.0f, 0.0f,  // Bottom Right
+    0.5f,  -0.5f,  0.0f, 1.0f, 0.0f,  // Bottom Right
+    -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  // Bottom Left
+    -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,  // Top Left
 };
 
 // callbacks
@@ -71,18 +74,40 @@ int main()
 		return -2;
 	}
 
-	// ---------------------------------------------------------------
-
 	// Setup OpenGL options
 	glEnable(GL_DEPTH_TEST);
 
+    // ---------------------------------------------------------------
+
 	// Install GLSL Shader programs
-	auto shaderProgram = Shader::Create("VertexShader.vert", "FragmentShader.frag");
-	if (shaderProgram == nullptr) {
+	auto snowShader = Shader::Create("snow.vert", "snow.frag");
+	if (snowShader == nullptr) {
 		std::cerr << "Error creating Shader Program" << std::endl;
 		glfwTerminate();
 		return -3;
 	}
+
+    GLuint texBack = 0;
+    if ((texBack = SOIL_load_OGL_texture(
+        "background.jpg",
+        SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+    )) == 0) {
+        glfwTerminate();
+        return -4;
+    }
+
+    GLuint texSnow = 0;
+    if ((texSnow = SOIL_load_OGL_texture(
+        "snow.png",
+        SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+    )) == 0) {
+        glfwTerminate();
+        glDeleteTextures(1, &texBack);
+        return -4;
+    }
+
 
 	// ---------------------------------------------------------------
 
@@ -97,16 +122,15 @@ int main()
 	GLuint VBO;
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(background), background, GL_STATIC_DRAW);
 
 	// set vertex attribute pointers
 	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
-	// color attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	// tex coord attribute
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
-
 
 	// unbind VBO & VAO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -118,6 +142,8 @@ int main()
 	glViewport(0, 0, screenWidth, screenHeight);
 
 	// Update loop
+
+    glm::mat4 view = glm::lookAt(glm::vec3{0, 0, -10}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0});
 
 	while (glfwWindowShouldClose(window) == 0) {
 		// check event queue
@@ -132,10 +158,27 @@ int main()
 		glClearColor(red, green, blue, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// draw a triangle
-		shaderProgram->Use();
+        glm::mat4 projection = glm::ortho(
+            -GLfloat(screenWidth) / 2,
+            GLfloat(screenWidth) / 2,
+            -GLfloat(screenHeight) / 2,
+            GLfloat(screenHeight) / 2,
+            -1.0f, 1000.0f
+        );
+
+        //glm::mat4 model = glm::scale(glm::mat4(1.0f), {80.0f, 80.0f, 0.0f});
+
+		// draw
+		snowShader->Use();
+
+        glUniformMatrix4fv(glGetUniformLocation(snowShader->Program(), "projection"), 1, false, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(snowShader->Program(), "view"), 1, false, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(snowShader->Program(), "model"), 1, false, glm::value_ptr(glm::mat4(1.0f)));
+        glUniform1f(glGetUniformLocation(snowShader->Program(), "scale"), 180.0f);
+
+
 		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 		glBindVertexArray(0);
 
 		// swap buffer
@@ -145,6 +188,8 @@ int main()
 	// properly de-allocate all resources
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
+    glDeleteTextures(1, &texBack);
+    glDeleteTextures(1, &texSnow);
 
 	glfwTerminate();
 	return 0;

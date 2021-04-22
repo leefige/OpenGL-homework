@@ -10,3 +10,7 @@
 
 You could use any your own texture image as the background.
 Required materials see attachment Assignment4.zip. Submit code, report and screen recording.
+
+## Copyright info
+
+The background photo credits to Zhengyu Cheng, Tsinghua University.
