@@ -10,13 +10,15 @@ layout (location = 1) in vec2 texCoord;
 
 out vec2 mapCoord;
 
+uniform vec2 offset;
+
 uniform mat4 projection;
 uniform mat4 view;
+
 uniform float scale;
 
 void main()
 {
-    vec4 scaled = vec4(position.x * scale, position.y * scale, position.z, 1.0);
-	gl_Position = projection * view * scaled;
+	gl_Position = projection * view * vec4((position.xy * scale) + offset, 0, 1.0);
 	mapCoord = vec2(texCoord.x, texCoord.y);
 }

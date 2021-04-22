@@ -16,12 +16,15 @@
 #include FT_FREETYPE_H
 
 #include "shader.hpp"
+#include "snow.hpp"
 
 using namespace cg;
 
 // window settings
 int screenWidth = 800;
 int screenHeight = 600;
+
+Snowing snowing(50, 0.5f, screenWidth, screenHeight, {0, -4.0f, 0}, 30, 10, 50, {0, -9.8f, 0});
 
 // normalized coordinates
 constexpr GLfloat background[] = {
@@ -156,13 +159,21 @@ int main()
 
 	// Update loop
 
-    glm::mat4 view = glm::lookAt(glm::vec3{0, 0, 10}, glm::vec3{0, 0, -100.0}, glm::vec3{0, 1, 0});
+    GLfloat deltaTime = 0.0f;
+    GLfloat lastFrame = 0.0f;
+
+    glm::mat4 view = glm::lookAt(glm::vec3{0, 0, 100}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0});
 
 	while (glfwWindowShouldClose(window) == 0) {
+        GLfloat currentFrame = GLfloat(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
 		// check event queue
 		glfwPollEvents();
 
 		/* your update code here */
+        snowing.Update(deltaTime);
 	
 		// draw background
 		GLfloat red = 0.2f;
@@ -176,7 +187,7 @@ int main()
             GLfloat(screenWidth) / 2,
             -GLfloat(screenHeight) / 2,
             GLfloat(screenHeight) / 2,
-            -100.0f, 100.0f
+            -1000.0f, 1000.0f
         );
 
         //glm::mat4 model = glm::scale(glm::mat4(1.0f), {80.0f, 80.0f, 0.0f});
@@ -186,7 +197,8 @@ int main()
 
 		// draw
         drawBackground(*backShader, VAO, texBack, view, projection);
-        drawSnow(*snowShader, VAO, texSnow, view, projection, rand() % 100);
+        snowing.Draw(*snowShader, VAO, texSnow, view, projection);
+        //drawSnow(*snowShader, VAO, texSnow, view, projection, rand() % 100);
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -216,6 +228,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
 {
     screenWidth = width;
     screenHeight = height;
+    snowing.SetPositionRange(screenWidth, screenHeight);
 	// resize window
 	glViewport(0, 0, width, height);
 }
