@@ -29,6 +29,7 @@ constexpr GLfloat background[] = {
     -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,  // Top Left
     0.5f,   0.5f,  0.0f, 1.0f, 1.0f,  // Top Right
     0.5f,  -0.5f,  0.0f, 1.0f, 0.0f,  // Bottom Right
+
     0.5f,  -0.5f,  0.0f, 1.0f, 0.0f,  // Bottom Right
     -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  // Bottom Left
     -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,  // Top Left
@@ -37,6 +38,9 @@ constexpr GLfloat background[] = {
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
+
+void drawBackground(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection);
+void drawSnow(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection, float scale);
 
 int main()
 {
@@ -87,6 +91,13 @@ int main()
 		return -3;
 	}
 
+    auto backShader = Shader::Create("background.vert", "background.frag");
+    if (backShader == nullptr) {
+        std::cerr << "Error creating Shader Program" << std::endl;
+        glfwTerminate();
+        return -3;
+    }
+
     GLuint texBack = 0;
     if ((texBack = SOIL_load_OGL_texture(
         "background.jpg",
@@ -96,6 +107,7 @@ int main()
         glfwTerminate();
         return -4;
     }
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     GLuint texSnow = 0;
     if ((texSnow = SOIL_load_OGL_texture(
@@ -107,6 +119,7 @@ int main()
         glDeleteTextures(1, &texBack);
         return -4;
     }
+    glBindTexture(GL_TEXTURE_2D, 0);
 
 
 	// ---------------------------------------------------------------
@@ -143,7 +156,7 @@ int main()
 
 	// Update loop
 
-    glm::mat4 view = glm::lookAt(glm::vec3{0, 0, -10}, glm::vec3{0, 0, 0}, glm::vec3{0, 1, 0});
+    glm::mat4 view = glm::lookAt(glm::vec3{0, 0, 10}, glm::vec3{0, 0, -100.0}, glm::vec3{0, 1, 0});
 
 	while (glfwWindowShouldClose(window) == 0) {
 		// check event queue
@@ -163,23 +176,17 @@ int main()
             GLfloat(screenWidth) / 2,
             -GLfloat(screenHeight) / 2,
             GLfloat(screenHeight) / 2,
-            -1.0f, 1000.0f
+            -100.0f, 100.0f
         );
 
         //glm::mat4 model = glm::scale(glm::mat4(1.0f), {80.0f, 80.0f, 0.0f});
 
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 		// draw
-		snowShader->Use();
-
-        glUniformMatrix4fv(glGetUniformLocation(snowShader->Program(), "projection"), 1, false, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(snowShader->Program(), "view"), 1, false, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(snowShader->Program(), "model"), 1, false, glm::value_ptr(glm::mat4(1.0f)));
-        glUniform1f(glGetUniformLocation(snowShader->Program(), "scale"), 180.0f);
-
-
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		glBindVertexArray(0);
+        drawBackground(*backShader, VAO, texBack, view, projection);
+        drawSnow(*snowShader, VAO, texSnow, view, projection, rand() % 100);
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -211,4 +218,42 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height)
     screenHeight = height;
 	// resize window
 	glViewport(0, 0, width, height);
+}
+
+void drawBackground(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection)
+{
+    glm::mat4 model = glm::translate(
+        glm::scale(glm::mat4(1.0f), {screenWidth, screenHeight, 1.0f}),
+        {0, 0, -50.0f}
+    );
+
+    shader.Use();
+    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "projection"), 1, false, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "view"), 1, false, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "model"), 1, false, glm::value_ptr(model));
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void drawSnow(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection, float scale)
+{
+    glm::mat4 model = glm::translate(
+        glm::scale(glm::mat4(1.0f), {screenWidth, screenHeight, 1.0f}),
+        {0, 0, -50.0f}
+    );
+
+    shader.Use();
+    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "projection"), 1, false, glm::value_ptr(projection));
+    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "view"), 1, false, glm::value_ptr(view));
+    glUniform1f(glGetUniformLocation(shader.Program(), "scale"), scale);
+
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }

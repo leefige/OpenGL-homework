@@ -37,5 +37,11 @@
     <None Include="snow.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="background.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="background.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -12,11 +12,10 @@ out vec2 mapCoord;
 
 uniform mat4 projection;
 uniform mat4 view;
-uniform float scale;
+uniform mat4 model;
 
 void main()
 {
-    vec4 scaled = vec4(position.x * scale, position.y * scale, position.z, 1.0);
-	gl_Position = projection * view * scaled;
-	mapCoord = vec2(texCoord.x, texCoord.y);
+	gl_Position = projection * view * model * vec4(position, 1.0f);
+	mapCoord = texCoord;
 }

@@ -152,6 +152,8 @@
     <ClInclude Include="shader.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="background.frag" />
+    <None Include="background.vert" />
     <None Include="snow.frag" />
     <None Include="snow.vert" />
   </ItemGroup>
