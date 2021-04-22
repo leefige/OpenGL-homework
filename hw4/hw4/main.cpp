@@ -24,7 +24,7 @@ using namespace cg;
 int screenWidth = 800;
 int screenHeight = 600;
 
-Snowing snowing(50, 0.5f, screenWidth, screenHeight, {0, -4.0f, 0}, 30, 10, 50, {0, -9.8f, 0});
+Snowing snowing(3, 0.15f, 0.5f, screenWidth, screenHeight, {0, -4.0f, 0}, 12, 10, 50, {0, -9.8f, 0});
 
 // normalized coordinates
 constexpr GLfloat background[] = {
@@ -43,7 +43,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 
 void drawBackground(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection);
-void drawSnow(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection, float scale);
 
 int main()
 {
@@ -56,7 +55,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window
-	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "My OpenGL project", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Yifei Li - Assignment 4", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cerr << "Error creating window" << std::endl;
 		glfwTerminate();
@@ -103,7 +102,7 @@ int main()
 
     GLuint texBack = 0;
     if ((texBack = SOIL_load_OGL_texture(
-        "background.jpg",
+        "bg.jpg",
         SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
     )) == 0) {
@@ -190,15 +189,12 @@ int main()
             -1000.0f, 1000.0f
         );
 
-        //glm::mat4 model = glm::scale(glm::mat4(1.0f), {80.0f, 80.0f, 0.0f});
-
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		// draw
         drawBackground(*backShader, VAO, texBack, view, projection);
         snowing.Draw(*snowShader, VAO, texSnow, view, projection);
-        //drawSnow(*snowShader, VAO, texSnow, view, projection, rand() % 100);
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -244,25 +240,6 @@ void drawBackground(const Shader& shader, GLuint VAO, GLuint texture, const glm:
     glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "projection"), 1, false, glm::value_ptr(projection));
     glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "view"), 1, false, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "model"), 1, false, glm::value_ptr(model));
-
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-void drawSnow(const Shader& shader, GLuint VAO, GLuint texture, const glm::mat4& view, const glm::mat4& projection, float scale)
-{
-    glm::mat4 model = glm::translate(
-        glm::scale(glm::mat4(1.0f), {screenWidth, screenHeight, 1.0f}),
-        {0, 0, -50.0f}
-    );
-
-    shader.Use();
-    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "projection"), 1, false, glm::value_ptr(projection));
-    glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "view"), 1, false, glm::value_ptr(view));
-    glUniform1f(glGetUniformLocation(shader.Program(), "scale"), scale);
 
     glBindTexture(GL_TEXTURE_2D, texture);
     glBindVertexArray(VAO);

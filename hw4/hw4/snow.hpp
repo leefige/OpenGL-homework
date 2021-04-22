@@ -42,7 +42,7 @@ public:
 		this->speed = speed;
 		this->position = position;
 		this->scale = scale;
-		fadeSpeed = 1.0f / life * 1.5f;
+		fadeSpeed = 1.0f / life;
 		alpha = 1.0f;
 	}
 
@@ -55,7 +55,7 @@ public:
 	{
 		speed += force / GLfloat(mass) * GLfloat(dt);
 		position += speed * GLfloat(dt);
-		alpha -= fadeSpeed;
+		alpha -= fadeSpeed * dt;
 		if (alpha < 0) {
 			alpha = 0;
 		}
@@ -65,24 +65,27 @@ public:
 
 class Snowing
 {
-protected:
 	std::deque<Mass*> available;
 	std::deque<Mass*> emitted;
 
-	int maxNum;
+	float period;
+	float growth;
 	float massMass;
 	float minScale;
 	float maxScale;
 	float initLife;
-	float height;
-	float width;
+	int height;
+	int width;
 	glm::vec3 initSpeed;
 	glm::vec3 gravity;
 
+	float countdown;
+
 public:
-	Snowing(int maxNum, float m, float width, float height,
+	Snowing(float period, float growth, float m, int width, int height,
 			glm::vec3 speed, float life, float minScale, float maxScale, glm::vec3 gravity) :
-		maxNum(maxNum),
+		period(period),
+		growth(growth),
 		massMass(m),
 		minScale(minScale),
 		maxScale(maxScale),
@@ -92,6 +95,7 @@ public:
 		initSpeed(speed),
 		gravity(gravity)
 	{
+		countdown = 0;
 	}
 
 	virtual ~Snowing()
@@ -114,9 +118,10 @@ public:
 		return emitted[idx];
 	}
 
-	void SetPositionRange(float width, float height)
+	void SetPositionRange(int width, int height)
 	{
-
+		this->width = width;
+		this->height = height;
 	}
 
 	void Update(float dt)
@@ -133,10 +138,17 @@ public:
 		}
 
 		// gen new mass
-		if (emitted.size() < maxNum) {
+		countdown -= dt;
+		if (countdown < 0) {
 			auto newOne = newMass();
 			newOne->ApplyForce(gravity * newOne->mass);
 			emitted.push_back(newOne);
+			countdown = float(rand() % int(period * 100)) / 100;
+		}
+
+		period -= growth * dt;
+		if (period < 0.3f) {
+			period = 0.3f;
 		}
 	}
 
@@ -150,8 +162,8 @@ public:
 private:
 	Mass* newMass()
 	{
-		auto x = fmod(float(rand()) / 100.0f, width) - width / 2;
-		auto y = height / 2;
+		auto x = float(rand() % width) - float(width) / 2;
+		auto y = float(height / 2) + (minScale + maxScale) / 2;
 
 		auto scale = fmod(float(rand()) / 100.0f, maxScale - minScale) + minScale;
 
@@ -160,11 +172,11 @@ private:
 			available.pop_front();
 
 			// reset
-			ret->Init(massMass, glm::vec3{x, y, 0}, initSpeed, (scale - minScale) / (maxScale - minScale) * initLife, scale);
+			ret->Init(massMass, glm::vec3{x, y, 0}, initSpeed, initLife, scale);
 
 			return ret;
 		} else {
-			return new Mass(massMass, glm::vec3{x, y, 0}, initSpeed, (scale - minScale) / (maxScale - minScale) * initLife, scale);
+			return new Mass(massMass, glm::vec3{x, y, 0}, initSpeed, initLife, scale);
 		}
 	}
 
@@ -176,6 +188,7 @@ private:
 		glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(shader.Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniform1f(glGetUniformLocation(shader.Program(), "scale"), mass->scale);
+		glUniform1f(glGetUniformLocation(shader.Program(), "alpha"), mass->alpha);
 
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(VAO);

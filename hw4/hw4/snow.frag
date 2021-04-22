@@ -9,6 +9,7 @@ in vec2 mapCoord;
 out vec4 color;
 
 uniform sampler2D texMap;
+uniform float alpha;
 
 void main()
 {
@@ -16,4 +17,5 @@ void main()
     if (color.r + color.g + color.b >= 2.7f) {
         discard;
     }
+    color.a = alpha;
 }
