@@ -12,9 +12,6 @@
 
 #include <SOIL2/SOIL2.h>
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
 #include "shader.hpp"
 #include "snow.hpp"
 
