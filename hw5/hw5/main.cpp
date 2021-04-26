@@ -152,6 +152,25 @@ int main()
         return -5;
     }
 
+    // ---------------------------------------------------------------
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture); // All upcoming GL_TEXTURE_2D operations now have effect on our texture object
+    // Set our texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);    // Set texture wrapping to GL_REPEAT
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // Set texture filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Load, create texture and generate mipmaps
+    int width, height;
+    unsigned char* image = SOIL_load_image("Snow.jpg", &width, &height, 0, SOIL_LOAD_RGB);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    SOIL_free_image_data(image);
+    glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture when done, so we won't accidentily mess up our texture.
+
 	// ---------------------------------------------------------------
 
 	// Set up vertex data (and buffer(s)) and attribute pointers
@@ -222,18 +241,22 @@ int main()
         switch (currentMode) {
         case DisplayMode::WIREFRAME:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glUniform1i(glGetUniformLocation(surfaceShader->Program(), "useTexture"), 0);
             break;
         case DisplayMode::FACE:
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glUniform1i(glGetUniformLocation(surfaceShader->Program(), "useTexture"), 1);
             break;
         default:
             break;
         }
 
+        glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
         glPatchParameteri(GL_PATCH_VERTICES, 25);
         glDrawArrays(GL_PATCHES, 0, 25);
         glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Draw control points
         if (showPoints) {
@@ -272,6 +295,7 @@ int main()
 	// properly de-allocate all resources
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
+    glDeleteTextures(1, &texture);
 
 	glfwTerminate();
 	return 0;

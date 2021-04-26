@@ -2,7 +2,7 @@
 
 layout(quads, equal_spacing, ccw) in;
 
-out vec2 TexCoord;
+out vec2 texCoord;
 
 void main() {
 
@@ -15,7 +15,7 @@ void main() {
 
 	float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
-    TexCoord = vec2(u, v);
+    texCoord = vec2(u, v);
 
     // Computing the Position, given a u and v
 	// the basis functions:
