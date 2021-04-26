@@ -27,23 +27,33 @@ int screenHeight = 600;
 
 // normalized coordinates
 constexpr GLfloat vertices[] = {
+        -1.5, 1., -4.,
+        -0.5, 2., -4.,
+        0., 0., -4.,
+        0.5, 2., -4.,
+        1.5, 1., -4.,
+
         -1.5, 2., -3.,
         -0.5, 1., -3.,
+        0., 0.5, -3.,
         0.5, 1., -3.,
         1.5, 2., -3.,
 
         -1.5, 1., -2.,
         -0.5, -2., -2.,
+        0., -1., -2.,
         0.5, 1., -2.,
         1.5, 0., -2.,
 
         -1.5, 0., -1.,
         -0.5, 1., -1.,
+        0., 1.5, -1.,
         0.5, 0., -1.,
         1.5, -1., -1.,
 
         -1.5, 0., 0.,
         -0.5, 1., 0.,
+        0., 1., 0.,
         0.5, -1., 0.,
         1.5, -1., 0.
 };
@@ -182,8 +192,8 @@ int main()
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         glBindVertexArray(VAO);
-        glPatchParameteri(GL_PATCH_VERTICES, 16);
-        glDrawArrays(GL_PATCHES, 0, 16);
+        glPatchParameteri(GL_PATCH_VERTICES, 25);
+        glDrawArrays(GL_PATCHES, 0, 25);
         glBindVertexArray(0);
 
 		// swap buffer

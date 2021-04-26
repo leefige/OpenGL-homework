@@ -1,6 +1,6 @@
 #version 460 core
 
-layout( vertices = 16 ) out;
+layout( vertices = 25 ) out;
 
 uniform float uOuter02, uOuter13, uInner0, uInner1;
 
