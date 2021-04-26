@@ -21,6 +21,14 @@
 
 using namespace cg;
 
+enum class DisplayMode : int
+{
+    FACE = 0,
+    WIREFRAME = 1
+};
+
+DisplayMode currentMode = DisplayMode::FACE;
+
 // window settings
 int screenWidth = 800;
 int screenHeight = 600;
@@ -196,7 +204,16 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(surfaceShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(surfaceShader->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        switch (currentMode) {
+        case DisplayMode::WIREFRAME:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            break;
+        case DisplayMode::FACE:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            break;
+        default:
+            break;
+        }
 
         glBindVertexArray(VAO);
         glPatchParameteri(GL_PATCH_VERTICES, 25);
@@ -292,20 +309,18 @@ void changeScale(GLfloat deltaTime)
         else
             level -= deltaTime * 10.0f;
         level = level <= 1.0f ? 1.0f : level;
-        std::cout << "\rLevel: " << level << "    ";
     }
+
     if (keys[GLFW_KEY_X] && level < 40) {
         if (level < 20.0f)
             level += deltaTime * 5.0f;
         else
             level += deltaTime * 10.0f;
         level = level >= 40.0f ? 40.0f : level;
-        std::cout << "\rLevel: " << level << "    ";
     }
+
     if (keys[GLFW_KEY_C]) {
-        /*drawMode = 1 - drawMode;
-        std::cout << "\rDrawMode: " << drawMode << "    ";
-        */
+        currentMode = static_cast<DisplayMode>(1 - static_cast<int>(currentMode));
         keys[GLFW_KEY_C] = false;
     }
 }
