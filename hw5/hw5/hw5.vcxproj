@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClInclude Include="camera.hpp" />
     <ClInclude Include="shader.hpp" />
+    <ClInclude Include="text.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="bezier.frag" />
@@ -160,6 +161,8 @@
     <None Include="point.frag">
       <SubType>GLSL</SubType>
     </None>
+    <None Include="text.frag" />
+    <None Include="text.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

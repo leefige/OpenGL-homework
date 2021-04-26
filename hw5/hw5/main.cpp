@@ -18,6 +18,7 @@
 
 #include "camera.hpp"
 #include "shader.hpp"
+#include "text.hpp"
 
 using namespace cg;
 
@@ -27,11 +28,17 @@ enum class DisplayMode : int
     WIREFRAME = 1
 };
 
+// window settings
+int screenWidth = 1280;
+int screenHeight = 960;
+
+float level = 5.0f;
+bool showText = true;
+bool showPoints = true;
 DisplayMode currentMode = DisplayMode::FACE;
 
-// window settings
-int screenWidth = 800;
-int screenHeight = 600;
+Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+bool keys[1024]{false};
 
 // normalized coordinates
 constexpr GLfloat vertices[] = {
@@ -65,11 +72,6 @@ constexpr GLfloat vertices[] = {
         0.5, -1., 0.,
         1.5, -1., 0.
 };
-
-float level = 5.0f;
-
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-bool keys[1024]{false};
 
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -134,7 +136,20 @@ int main()
     if (pointShader == nullptr) {
         std::cerr << "Error creating Shader Program" << std::endl;
         glfwTerminate();
-        return -3;
+        return -4;
+    }
+
+    Text arial;
+    if (!arial.LoadFont("arial.ttf")) {
+        std::cerr << "Error loading font '" << "arial.ttf" << "'" << std::endl;
+        glfwTerminate();
+        return -5;
+    }
+
+    if (!arial.LoadShaders("text.vert", "text.frag")) {
+        std::cerr << "Error creating text shaders" << std::endl;
+        glfwTerminate();
+        return -5;
     }
 
 	// ---------------------------------------------------------------
@@ -221,14 +236,34 @@ int main()
         glBindVertexArray(0);
 
         // Draw control points
-        pointShader->Use();
-        glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glPointSize(5.0f);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_POINTS, 0, 25);
-        glBindVertexArray(0);
+        if (showPoints) {
+            pointShader->Use();
+            glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
+            glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
+            glPointSize(5.0f);
+            glBindVertexArray(VAO);
+            glDrawArrays(GL_POINTS, 0, 25);
+            glBindVertexArray(0);
+        }
+
+        if (showText) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glm::mat4 UIprojection = glm::ortho(
+                -GLfloat(screenWidth) / 2,
+                GLfloat(screenWidth) / 2,
+                -GLfloat(screenHeight) / 2,
+                GLfloat(screenHeight) / 2,
+                -1.0f, 1000.0f
+            );
+
+            auto screenOrigin = glm::vec2{-static_cast<GLfloat>(screenWidth) / 2, -static_cast<GLfloat>(screenHeight) / 2};
+            arial.RenderText("Use W/A/S/D and mouse to control the camera.", screenOrigin.x + 25, screenOrigin.y + 145, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Use X/Z to change the smoothness of the surface. Current level: " + std::to_string(level) + ".", screenOrigin.x + 25, screenOrigin.y + 115, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press C to switch between face mode and wireframe mode.", screenOrigin.x + 25, screenOrigin.y + 85, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press P to turn on/off showing control points.", screenOrigin.x + 25, screenOrigin.y + 55, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+            arial.RenderText("Press T to turn on/off showing this message.", screenOrigin.x + 25, screenOrigin.y + 25, 0.5, UIprojection, glm::vec3{0.8f, 0.7f, 0.3f});
+        }
 
 		// swap buffer
 		glfwSwapBuffers(window);
@@ -249,6 +284,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     // exit when pressing ESC
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
+    } else if (key == GLFW_KEY_P && action == GLFW_PRESS) {
+        showPoints = !showPoints;
+    } else if (key == GLFW_KEY_T && action == GLFW_PRESS) {
+        showText = !showText;
     } else if (key >= 0 && key < 1024) {
         if (action == GLFW_PRESS) {
             keys[key] = true;
