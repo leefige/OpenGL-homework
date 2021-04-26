@@ -149,11 +149,14 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="camera.hpp" />
     <ClInclude Include="shader.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmentShader.frag" />
-    <None Include="VertexShader.vert" />
+    <None Include="bezier.frag" />
+    <None Include="bezier.vert" />
+    <None Include="bezier.tesc" />
+    <None Include="bezier.tese" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

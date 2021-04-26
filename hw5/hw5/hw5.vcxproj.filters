@@ -29,12 +29,21 @@
     <ClInclude Include="shader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="camera.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="FragmentShader.frag">
+    <None Include="bezier.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="VertexShader.vert">
+    <None Include="bezier.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="bezier.tesc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="bezier.tese">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

@@ -27,19 +27,19 @@ class Shader
 public:
 	virtual ~Shader() { glDeleteProgram(shaderProgram); }
 
-	static std::unique_ptr<Shader> Create(const std::string& vertexFilename, const std::string& fragmentFilename)
+	static std::unique_ptr<Shader> Create(const char* const vertexFilename, const char* const fragmentFilename)
 	{
 		// Build and compile our shader programs
 
 		// Vertex shaders
-		const GLuint vertexShader = CompileShader(vertexFilename, GL_VERTEX_SHADER);
+		const GLuint vertexShader = compileShader(vertexFilename, GL_VERTEX_SHADER);
 		if (vertexShader == 0) {
 			std::cerr << "Cannot create Vertex Shader from file '" << vertexFilename << "'." << std::endl;
 			return nullptr;
 		}
 
 		// Fragment shaders
-		const GLuint fragmentShader = CompileShader(fragmentFilename, GL_FRAGMENT_SHADER);
+		const GLuint fragmentShader = compileShader(fragmentFilename, GL_FRAGMENT_SHADER);
 		if (fragmentShader == 0) {
 			std::cerr << "Cannot create Fragment Shader from file '" << fragmentFilename << "'." << std::endl;
 			glDeleteShader(vertexShader);
@@ -71,13 +71,80 @@ public:
 		return std::unique_ptr<Shader>(new Shader(program));
 	}
 
+	static std::unique_ptr<Shader> Create(const char* const vertexFilename, const char* const fragmentFilename, const char* const tcsFilename, const char* const tesFilename)
+	{
+		// Build and compile our shader programs
+
+		// Vertex shaders
+		const GLuint vertexShader = compileShader(vertexFilename, GL_VERTEX_SHADER);
+		if (vertexShader == 0) {
+			std::cerr << "Cannot create Vertex Shader from file '" << vertexFilename << "'." << std::endl;
+			return nullptr;
+		}
+
+		// Fragment shaders
+		const GLuint fragmentShader = compileShader(fragmentFilename, GL_FRAGMENT_SHADER);
+		if (fragmentShader == 0) {
+			std::cerr << "Cannot create Fragment Shader from file '" << fragmentFilename << "'." << std::endl;
+			glDeleteShader(vertexShader);
+			return nullptr;
+		}
+
+		// Tesselation control shaders
+		const GLuint tcsShader = compileShader(tcsFilename, GL_TESS_CONTROL_SHADER);
+		if (tcsShader == 0) {
+			std::cerr << "Cannot create Tesselation control Shader from file '" << tcsFilename << "'." << std::endl;
+			glDeleteShader(vertexShader);
+			glDeleteShader(fragmentShader);
+			return nullptr;
+		}
+
+		// Tesselation evaluation shaders
+		const GLuint tesShader = compileShader(tesFilename, GL_TESS_EVALUATION_SHADER);
+		if (tesShader == 0) {
+			std::cerr << "Cannot create Tesselation evaluation Shader from file '" << tesFilename << "'." << std::endl;
+			glDeleteShader(vertexShader);
+			glDeleteShader(fragmentShader);
+			glDeleteShader(tcsShader);
+			return nullptr;
+		}
+
+		// link shaders: including vertex & fragment shaders
+		const GLuint program = glCreateProgram();
+		glAttachShader(program, vertexShader);
+		glAttachShader(program, fragmentShader);
+		glAttachShader(program, tcsShader);
+		glAttachShader(program, tesShader);
+		glLinkProgram(program);
+
+		// release input shaders
+		glDeleteShader(vertexShader);
+		glDeleteShader(fragmentShader);
+		glDeleteShader(tcsShader);
+		glDeleteShader(tesShader);
+
+		// check for linking errors
+		GLint success;
+		const GLsizei logLen = 512;
+		GLchar infoLog[logLen];
+		glGetProgramiv(program, GL_LINK_STATUS, &success);
+		if (!success) {
+			glGetProgramInfoLog(program, logLen, NULL, infoLog);
+			std::cerr << "Link Shader error: " << infoLog << std::endl;
+			glDeleteProgram(program);
+			return nullptr;
+		}
+
+		return std::unique_ptr<Shader>(new Shader(program));
+	}
+
 	const GLuint Program() const { return shaderProgram; }
 
 	void Use() const { glUseProgram(shaderProgram); }
 
 private:
 
-	static const GLuint CompileShader(const std::string& filename, GLenum type)
+	static const GLuint compileShader(const char* const filename, GLenum type)
 	{
 		std::ifstream fin;
 
