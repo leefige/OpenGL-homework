@@ -37,7 +37,7 @@ bool showText = true;
 bool showPoints = true;
 DisplayMode currentMode = DisplayMode::FACE;
 
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 2.5f, 3.0f));
 bool keys[1024]{false};
 
 // normalized coordinates
