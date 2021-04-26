@@ -157,6 +157,9 @@
     <None Include="bezier.vert" />
     <None Include="bezier.tesc" />
     <None Include="bezier.tese" />
+    <None Include="point.frag">
+      <SubType>GLSL</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -115,12 +115,19 @@ int main()
     // ---------------------------------------------------------------
 
 	// Install GLSL Shader programs
-	auto shaderProgram = Shader::Create("bezier.vert", "bezier.frag", "bezier.tesc", "bezier.tese");
-	if (shaderProgram == nullptr) {
+	auto surfaceShader = Shader::Create("bezier.vert", "bezier.frag", "bezier.tesc", "bezier.tese");
+	if (surfaceShader == nullptr) {
 		std::cerr << "Error creating Shader Program" << std::endl;
 		glfwTerminate();
 		return -3;
 	}
+
+    auto pointShader = Shader::Create("bezier.vert", "point.frag");
+    if (pointShader == nullptr) {
+        std::cerr << "Error creating Shader Program" << std::endl;
+        glfwTerminate();
+        return -3;
+    }
 
 	// ---------------------------------------------------------------
 
@@ -179,21 +186,31 @@ int main()
         glm::mat4 view = camera.ViewMatrix();
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom()), (float)screenWidth / (float)screenHeight, 0.1f, 100.0f);
 
-        // Activate shader
-        shaderProgram->Use();
-        glUniform1f(glGetUniformLocation(shaderProgram->Program(), "uOuter02"), level);
-        glUniform1f(glGetUniformLocation(shaderProgram->Program(), "uOuter13"), level);
-        glUniform1f(glGetUniformLocation(shaderProgram->Program(), "uInner0"), level);
-        glUniform1f(glGetUniformLocation(shaderProgram->Program(), "uInner1"), level);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
+        // Draw Bezier surface
+        surfaceShader->Use();
+        glUniform1f(glGetUniformLocation(surfaceShader->Program(), "uOuter02"), level);
+        glUniform1f(glGetUniformLocation(surfaceShader->Program(), "uOuter13"), level);
+        glUniform1f(glGetUniformLocation(surfaceShader->Program(), "uInner0"), level);
+        glUniform1f(glGetUniformLocation(surfaceShader->Program(), "uInner1"), level);
+        glUniformMatrix4fv(glGetUniformLocation(surfaceShader->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(surfaceShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(surfaceShader->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         glBindVertexArray(VAO);
         glPatchParameteri(GL_PATCH_VERTICES, 25);
         glDrawArrays(GL_PATCHES, 0, 25);
+        glBindVertexArray(0);
+
+        // Draw control points
+        pointShader->Use();
+        glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(pointShader->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glPointSize(5.0f);
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_POINTS, 0, 25);
         glBindVertexArray(0);
 
 		// swap buffer
