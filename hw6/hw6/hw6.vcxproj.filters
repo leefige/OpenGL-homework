@@ -43,5 +43,17 @@
     <None Include="face.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="lamp.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="lamp.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="material.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="material.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
