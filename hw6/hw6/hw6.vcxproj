@@ -152,6 +152,7 @@
     <ClInclude Include="camera.hpp" />
     <ClInclude Include="obj.hpp" />
     <ClInclude Include="shader.hpp" />
+    <ClInclude Include="text.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="face.frag" />
@@ -168,6 +169,8 @@
     <None Include="material.vert">
       <SubType>GLSL</SubType>
     </None>
+    <None Include="text.frag" />
+    <None Include="text.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

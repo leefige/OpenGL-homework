@@ -17,8 +17,9 @@
 #include FT_FREETYPE_H
 
 #include "camera.hpp"
-#include "shader.hpp"
 #include "obj.hpp"
+#include "shader.hpp"
+#include "text.hpp"
 
 using namespace cg;
 
@@ -94,7 +95,9 @@ constexpr float LAMP_SCALE = 0.2f;
 glm::vec3 lightPos(0.0f, 1.5f, 0.0f);
 glm::vec3 lightColor{1.0f, 1.0f, 1.0f};
 glm::vec3 materialColor{0.5, 1, 0.8};
+glm::vec3 textColor{0.8f, 0.7f, 0.3f};
 int useFaceNormal = 0;
+bool showText = true;
 
 Camera camera(glm::vec3{0, 3, 3}, glm::vec3{0, -1, -1}, 2);
 
@@ -170,6 +173,19 @@ int main()
         std::cerr << "Error creating Shader Program" << std::endl;
         glfwTerminate();
         return -3;
+    }
+
+    Text arial;
+    if (!arial.LoadFont("arial.ttf")) {
+        std::cerr << "Error loading font '" << "arial.ttf" << "'" << std::endl;
+        glfwTerminate();
+        return -5;
+    }
+
+    if (!arial.LoadShaders("text.vert", "text.frag")) {
+        std::cerr << "Error creating text shaders" << std::endl;
+        glfwTerminate();
+        return -5;
     }
 
     // ---------------------------------------------------------------
@@ -285,10 +301,7 @@ int main()
         );
 
 		// draw background
-		GLfloat red = 0.2f;
-		GLfloat green = 0.3f;
-		GLfloat blue = 0.3f;
-		glClearColor(red, green, blue, 1.0f);
+		glClearColor(0, 0, 0, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         lightingShader->Use();
@@ -351,6 +364,27 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
 
+        if (showText) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glm::mat4 UIprojection = glm::ortho(
+                -GLfloat(screenWidth) / 2,
+                GLfloat(screenWidth) / 2,
+                -GLfloat(screenHeight) / 2,
+                GLfloat(screenHeight) / 2,
+                -1.0f, 1000.0f
+            );
+
+            auto screenOrigin = glm::vec2{-static_cast<GLfloat>(screenWidth) / 2, -static_cast<GLfloat>(screenHeight) / 2};
+            arial.RenderText("Use W/A/S/D and mouse to control the camera.", screenOrigin.x + 25, screenOrigin.y + 235, 0.5, UIprojection, textColor);
+            arial.RenderText("Use UP/DOWN/LEFT/RIGHT ARROWs and X/Z to change the position of the lamp.", screenOrigin.x + 25, screenOrigin.y + 205, 0.5, UIprojection, textColor);
+            arial.RenderText("Press R/T to change the R value of material color.", screenOrigin.x + 25, screenOrigin.y + 175, 0.5, UIprojection, textColor);
+            arial.RenderText("Press G/H to change the G value of material color.", screenOrigin.x + 25, screenOrigin.y + 145, 0.5, UIprojection, textColor);
+            arial.RenderText("Press B/N to change the B value of material color.", screenOrigin.x + 25, screenOrigin.y + 115, 0.5, UIprojection, textColor);
+            arial.RenderText("Current material RGB: (" + std::to_string(materialColor.r) + "," + std::to_string(materialColor.g) + "," + std::to_string(materialColor.b) + ").", screenOrigin.x + 25, screenOrigin.y + 85, 0.5, UIprojection, textColor);
+            arial.RenderText("Press CTRL to switch between average normals and face normals.", screenOrigin.x + 25, screenOrigin.y + 55, 0.5, UIprojection, textColor);
+            arial.RenderText("Press ALT to turn on/off showing this message.", screenOrigin.x + 25, screenOrigin.y + 25, 0.5, UIprojection, textColor);
+        }
+
 		// swap buffer
 		glfwSwapBuffers(window);
 	}
@@ -374,8 +408,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     // exit when pressing ESC
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
-    } else if (key == GLFW_KEY_F && action == GLFW_PRESS) {
+    } else if ((key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL) && action == GLFW_PRESS) {
         useFaceNormal = 1 - useFaceNormal;
+    } else if ((key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT) && action == GLFW_PRESS) {
+        showText = !showText;
     } else if (key >= 0 && key < 1024) {
         if (action == GLFW_PRESS) {
             keys[key] = true;
@@ -407,21 +443,39 @@ void changeLighting(GLfloat deltaTime)
     // material controls
     if (keys[GLFW_KEY_R]) {
         materialColor.r += COLOR_SPEED * deltaTime;
+        if (materialColor.r > 1.0f) {
+            materialColor.r = 1.0f;
+        }
     }
     if (keys[GLFW_KEY_T]) {
         materialColor.r -= COLOR_SPEED * deltaTime;
+        if (materialColor.r < 0.0f) {
+            materialColor.r = 0.0f;
+        }
     }
     if (keys[GLFW_KEY_G]) {
         materialColor.g += COLOR_SPEED * deltaTime;
+        if (materialColor.g > 1.0f) {
+            materialColor.g = 1.0f;
+        }
     }
     if (keys[GLFW_KEY_H]) {
         materialColor.g -= COLOR_SPEED * deltaTime;
+        if (materialColor.g < 0.0f) {
+            materialColor.g = 0.0f;
+        }
     }
     if (keys[GLFW_KEY_B]) {
         materialColor.b += COLOR_SPEED * deltaTime;
+        if (materialColor.b > 1.0f) {
+            materialColor.b = 1.0f;
+        }
     }
     if (keys[GLFW_KEY_N]) {
         materialColor.b -= COLOR_SPEED * deltaTime;
+        if (materialColor.b < 0.0f) {
+            materialColor.b = 0.0f;
+        }
     }
 
     // lamp controls

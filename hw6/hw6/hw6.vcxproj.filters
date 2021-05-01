@@ -35,6 +35,9 @@
     <ClInclude Include="camera.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="text.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="face.frag">
@@ -53,6 +56,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="material.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="text.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="text.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
