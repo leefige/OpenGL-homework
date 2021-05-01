@@ -245,7 +245,7 @@ int main()
     GLuint avgVBO, faceVBO;
     glGenBuffers(1, &avgVBO);
     glGenBuffers(1, &faceVBO);
-    
+
     int numAvgVertices = bindData(avgVAO, avgVBO, my_obj, avgNormals);
     int numFaceVertices = bindData(faceVAO, faceVBO, my_obj, faceNormals);
 
@@ -358,8 +358,6 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(lampShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniform3fv(glGetUniformLocation(lampShader->Program(), "lightColor"), 1, glm::value_ptr(lightColor));
 
-        //glUniform3fv(glGetUniformLocation(shaderProgram->Program(), "myColor"), 1, glm::value_ptr(color));
-        //glUniform1i(glGetUniformLocation(shaderProgram->Program(), "useFlat"), flatColor);
         glBindVertexArray(lampVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
