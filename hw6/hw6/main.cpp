@@ -96,10 +96,14 @@ glm::vec3 lightPos(0.0f, 1.5f, 0.0f);
 glm::vec3 lightColor{1.0f, 1.0f, 1.0f};
 glm::vec3 materialColor{0.5, 1, 0.8};
 glm::vec3 textColor{0.8f, 0.7f, 0.3f};
+GLfloat specularStrength = 0.5f;
+GLfloat shininess = 32.0f;
+GLfloat scale = 1.0f;
+
 int useFaceNormal = 0;
 bool showText = true;
 
-Camera camera(glm::vec3{0, 3, 3}, glm::vec3{0, -1, -1}, 2);
+Camera camera(glm::vec3{3, 3, 3}, glm::vec3{-1, -1, -1}, 2);
 
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -272,11 +276,6 @@ int main()
 	// Define the viewport dimensions
 	glViewport(0, 0, screenWidth, screenHeight);
 
-    /*auto model = glm::rotate(
-        glm::rotate(glm::mat4(1.0f), glm::radians(50.0f), GLM_UP),
-        glm::radians(70.0f), GLM_RIGHT);*/
-    auto model = glm::mat4(1.0f);
-
 	// Update loop
     GLfloat deltaTime = 0.0f;    // Time between current frame and last frame
     GLfloat lastFrame = 0.0f;    // Time of last frame
@@ -295,6 +294,10 @@ int main()
         changeLighting(deltaTime);
 
         auto projection = glm::perspective(glm::radians(camera.Zoom()), (GLfloat)screenWidth / (GLfloat)screenHeight, 0.1f, 100.0f);
+        auto model = glm::scale(
+            glm::mat4(1.0f),
+            glm::vec3(scale)
+        );
         auto lampModel = glm::scale(
             glm::translate(glm::mat4(1.0f), lightPos),
             glm::vec3(LAMP_SCALE)
@@ -327,8 +330,8 @@ int main()
         GLint matShineLoc = glGetUniformLocation(lightingShader->Program(), "material.shininess");
         glUniform3fv(matAmbientLoc, 1, glm::value_ptr(materialColor));
         glUniform3fv(matDiffuseLoc, 1, glm::value_ptr(materialColor));
-        glUniform3f(matSpecularLoc, 0.5f, 0.5f, 0.5f);
-        glUniform1f(matShineLoc, 32.0f);
+        glUniform3f(matSpecularLoc, specularStrength, specularStrength, specularStrength);
+        glUniform1f(matShineLoc, shininess);
 
         // Create camera transformations
         glUniformMatrix4fv(glGetUniformLocation(lightingShader->Program(), "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -373,8 +376,10 @@ int main()
             );
 
             auto screenOrigin = glm::vec2{-static_cast<GLfloat>(screenWidth) / 2, -static_cast<GLfloat>(screenHeight) / 2};
-            arial.RenderText("Use W/A/S/D and mouse to control the camera.", screenOrigin.x + 25, screenOrigin.y + 235, 0.5, UIprojection, textColor);
-            arial.RenderText("Use UP/DOWN/LEFT/RIGHT ARROWs and X/Z to change the position of the lamp.", screenOrigin.x + 25, screenOrigin.y + 205, 0.5, UIprojection, textColor);
+            arial.RenderText("Use [ or ] to change the scale of the object. Current scale: " + std::to_string(scale) + ".", screenOrigin.x + 25, screenOrigin.y + 295, 0.5, UIprojection, textColor);
+            arial.RenderText("Use W/A/S/D and mouse to control the camera.", screenOrigin.x + 25, screenOrigin.y + 265, 0.5, UIprojection, textColor);
+            arial.RenderText("Use UP/DOWN/LEFT/RIGHT ARROWs and X/Z to change the position of the lamp.", screenOrigin.x + 25, screenOrigin.y + 235, 0.5, UIprojection, textColor);
+            arial.RenderText("Press -/= to change shininess value of material. Current shininess: " + std::to_string(shininess) + ".", screenOrigin.x + 25, screenOrigin.y + 205, 0.5, UIprojection, textColor);
             arial.RenderText("Press R/T to change the R value of material color.", screenOrigin.x + 25, screenOrigin.y + 175, 0.5, UIprojection, textColor);
             arial.RenderText("Press G/H to change the G value of material color.", screenOrigin.x + 25, screenOrigin.y + 145, 0.5, UIprojection, textColor);
             arial.RenderText("Press B/N to change the B value of material color.", screenOrigin.x + 25, screenOrigin.y + 115, 0.5, UIprojection, textColor);
@@ -475,6 +480,18 @@ void changeLighting(GLfloat deltaTime)
             materialColor.b = 0.0f;
         }
     }
+    if (keys[GLFW_KEY_EQUAL]) {
+        shininess += COLOR_SPEED * 50 * deltaTime;
+        if (shininess > 256.0f) {
+            shininess = 256.0f;
+        }
+    }
+    if (keys[GLFW_KEY_MINUS]) {
+        shininess -= COLOR_SPEED * 50 * deltaTime;
+        if (shininess < 2.0f) {
+            shininess = 2.0f;
+        }
+    }
 
     // lamp controls
     if (keys[GLFW_KEY_UP]) {
@@ -494,6 +511,20 @@ void changeLighting(GLfloat deltaTime)
     }
     if (keys[GLFW_KEY_X]) {
         lightPos.y -= LIGHT_MOVE_SPEED * deltaTime;
+    }
+
+    // model controls
+    if (keys[GLFW_KEY_RIGHT_BRACKET]) {
+        scale += LIGHT_MOVE_SPEED * deltaTime;
+        if (scale > 5.0f) {
+            scale = 5.0f;
+        }
+    }
+    if (keys[GLFW_KEY_LEFT_BRACKET]) {
+        scale -= LIGHT_MOVE_SPEED * deltaTime;
+        if (scale < 0.2f) {
+            scale = 0.2f;
+        }
     }
 }
 
