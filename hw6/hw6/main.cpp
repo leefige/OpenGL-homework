@@ -12,7 +12,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <SOIL2/SOIL2.h>
-#include <trimesh2/TriMesh.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -25,32 +24,18 @@ using namespace cg;
 
 struct VertNorm
 {
-    GLfloat x, y, z;
-    GLfloat nx, ny, nz;
-    VertNorm(GLfloat x_, GLfloat y_, GLfloat z_, GLfloat nx_, GLfloat ny_, GLfloat nz_) : x(x_), y(y_), z(z_), nx(nx_), ny(ny_), nz(nz_) {}
+    Vertex vertex;
+    Vertex normal;
+    VertNorm(GLfloat x_, GLfloat y_, GLfloat z_, GLfloat nx_, GLfloat ny_, GLfloat nz_) : vertex{x_, y_, z_}, normal{nx_, ny_, nz_} {}
+    VertNorm(const Vertex& vert, const Vertex& norm) : vertex(vert), normal(norm) {}
 };
 
-// window settings
-int screenWidth = 1280;
-int screenHeight = 960;
-
-bool keys[1024]{false};
+constexpr const char* const OBJ_FILE = "eight.uniform.obj";
 
 constexpr glm::vec3 GLM_UP(0.0f, 1.0f, 0.0f);
 constexpr glm::vec3 GLM_RIGHT(0.0f, 0.0f, 1.0f);
 constexpr glm::vec3 GLM_DOWN = -GLM_UP;
 constexpr glm::vec3 GLM_LEFT = -GLM_RIGHT;
-
-glm::vec3 lightColor{1.5f, 1.5f, 1.5f};
-glm::vec3 materialColor{0.5, 1, 0.8};
-int flatColor = 1;
-
-glm::vec3 lightPos(0.0f, 2.0f, 0.0f);
-
-
-const char* const OBJ_FILE = "eight.uniform.obj";
-
-Camera camera(glm::vec3{0, 3, 3}, glm::vec3{0, -1, -1}, 3);
 
 constexpr GLfloat vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
@@ -96,12 +81,31 @@ constexpr GLfloat vertices[] = {
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
 };
 
+// window settings
+int screenWidth = 1280;
+int screenHeight = 960;
+
+bool keys[1024]{false};
+
+constexpr float COLOR_SPEED = 0.5f;
+constexpr float LIGHT_MOVE_SPEED = 0.5f;
+constexpr float LAMP_SCALE = 0.2f;
+
+glm::vec3 lightPos(0.0f, 1.5f, 0.0f);
+glm::vec3 lightColor{1.0f, 1.0f, 1.0f};
+glm::vec3 materialColor{0.5, 1, 0.8};
+int useFaceNormal = 0;
+
+Camera camera(glm::vec3{0, 3, 3}, glm::vec3{0, -1, -1}, 2);
+
 // callbacks
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void framebufferSizeCallback(GLFWwindow* window, int width, int height);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void moveCamera(GLfloat deltaTime);
+void changeLighting(GLfloat deltaTime);
+int bindData(GLuint VAO, GLuint VBO, const Obj& obj, const std::vector<Vertex>& normal);
 
 int main()
 {
@@ -114,7 +118,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// create a window
-	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "My OpenGL project", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Yifei Li - Assignment 6", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cerr << "Error creating window" << std::endl;
 		glfwTerminate();
@@ -169,52 +173,47 @@ int main()
     }
 
     // ---------------------------------------------------------------
-    //// load model
-    //std::ifstream objfile;
-    //Obj my_obj;
+    // load model
+    std::ifstream objfile;
+    Obj my_obj;
 
-    //// ensures ifstream objects can throw exceptions:
-    //objfile.exceptions(std::ifstream::badbit);
-    //try {
-    //    objfile.open(OBJ_FILE, std::ios::in);
-    //    objfile >> my_obj;
-    //    objfile.close();
-    //}
-    //catch (const std::ifstream::failure& e) {
-    //    std::cerr << "Load obj file '" << OBJ_FILE << "' error: " << e.what() << std::endl;
-    //    glfwTerminate();
-    //    return -4;;
-    //}
-
-    std::unique_ptr<trimesh::TriMesh> m(trimesh::TriMesh::read(OBJ_FILE));
-    if (m == nullptr) {
-        std::cerr << "Load obj file '" << OBJ_FILE << "' error." << std::endl;
+    // ensures ifstream objects can throw exceptions:
+    objfile.exceptions(std::ifstream::badbit);
+    try {
+        objfile.open(OBJ_FILE, std::ios::in);
+        objfile >> my_obj;
+        objfile.close();
+    }
+    catch (const std::ifstream::failure& e) {
+        std::cerr << "Load obj file '" << OBJ_FILE << "' error: " << e.what() << std::endl;
         glfwTerminate();
         return -4;;
     }
 
-    std::cout << "There are " << m->vertices.size() << " vertices" << std::endl;
-    std::cout << "Vertex 0 is at " << m->vertices[0] << std::endl;
-    std::cout << "Face 0 has vertices " << m->faces[0][0] << ", "
-        << m->faces[0][1] << ", and " << m->faces[0][2] << std::endl;
-    m->need_normals(false);
-    std::cout << "Vertex 0 has normal " << m->normals[0] << std::endl;
-
-
     // ---------------------------------------------------------------
 
-    std::vector<trimesh::point> normals;
-    normals.resize(m->vertices.size());
-    int nf = m->faces.size();
-    for (int i = 0; i < nf; i++) {
-        const trimesh::point& p0 = m->vertices[m->faces[i][0]];
-        const trimesh::point& p1 = m->vertices[m->faces[i][1]];
-        const trimesh::point& p2 = m->vertices[m->faces[i][2]];
-        trimesh::vec a = p0 - p1, b = p1 - p2;
-        trimesh::vec facenormal = a CROSS b;
-        normals[m->faces[i][0]] = facenormal;
-        normals[m->faces[i][1]] = facenormal;
-        normals[m->faces[i][2]] = facenormal;
+    // compute normals
+
+    std::vector<Vertex> avgNormals;
+    std::vector<Vertex> faceNormals;
+    avgNormals.resize(my_obj.vertices.size());
+    faceNormals.resize(my_obj.vertices.size());
+
+    int nf = my_obj.faces.size();
+    for (const TriFace& face : my_obj.faces) {
+        glm::vec3 p0(my_obj.vertices[face[0]]);
+        glm::vec3 p1(my_obj.vertices[face[1]]);
+        glm::vec3 p2(my_obj.vertices[face[2]]);
+        glm::vec3 a = p0 - p1, b = p1 - p2;
+        Vertex facenormal = Vertex(glm::cross(a, b));
+        // face normal
+        faceNormals[face[0]] = facenormal;
+        faceNormals[face[1]] = facenormal;
+        faceNormals[face[2]] = facenormal;
+        // average normal
+        avgNormals[face[0]] += facenormal;
+        avgNormals[face[1]] += facenormal;
+        avgNormals[face[2]] += facenormal;
     }
 
 	// ---------------------------------------------------------------
@@ -222,39 +221,17 @@ int main()
 	// Set up vertex data (and buffer(s)) and attribute pointers
 
 	// bind VAO
-	GLuint VAO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+	GLuint avgVAO, faceVAO;
+    glGenVertexArrays(1, &avgVAO);
+    glGenVertexArrays(1, &faceVAO);
 
 	// bind VBO, buffer data to it
-	GLuint VBO;
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-    std::vector<VertNorm> data;
-    for (const auto& face : m->faces) {
-        for (int i = 0; i < 3; i++) {
-            int vid = face[i];
-            //data.emplace_back(m->vertices[vid][0], m->vertices[vid][1], m->vertices[vid][2], m->normals[vid][0], m->normals[vid][1], m->normals[vid][2]);
-            data.emplace_back(m->vertices[vid][0], m->vertices[vid][1], m->vertices[vid][2], normals[vid][0], normals[vid][1], normals[vid][2]);
-        }
-    }
-    int numVertices = int(data.size());
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertNorm) * data.size(), &data.front(), GL_STATIC_DRAW);
-
-	// set vertex attribute pointers
-	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertNorm), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-    // Normal attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertNorm), (GLvoid*)(3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(1);
-
-	// unbind VBO & VAO
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
+    GLuint avgVBO, faceVBO;
+    glGenBuffers(1, &avgVBO);
+    glGenBuffers(1, &faceVBO);
+    
+    int numAvgVertices = bindData(avgVAO, avgVBO, my_obj, avgNormals);
+    int numFaceVertices = bindData(faceVAO, faceVBO, my_obj, faceNormals);
 
     GLuint lampVAO;
     glGenVertexArrays(1, &lampVAO);
@@ -284,10 +261,6 @@ int main()
         glm::radians(70.0f), GLM_RIGHT);*/
     auto model = glm::mat4(1.0f);
 
-    auto lampModel = glm::scale(
-        glm::translate(glm::mat4(1.0f), lightPos),
-        glm::vec3(0.2f));
-
 	// Update loop
     GLfloat deltaTime = 0.0f;    // Time between current frame and last frame
     GLfloat lastFrame = 0.0f;    // Time of last frame
@@ -303,7 +276,13 @@ int main()
 
 		/* your update code here */
         moveCamera(deltaTime);
+        changeLighting(deltaTime);
+
         auto projection = glm::perspective(glm::radians(camera.Zoom()), (GLfloat)screenWidth / (GLfloat)screenHeight, 0.1f, 100.0f);
+        auto lampModel = glm::scale(
+            glm::translate(glm::mat4(1.0f), lightPos),
+            glm::vec3(LAMP_SCALE)
+        );
 
 		// draw background
 		GLfloat red = 0.2f;
@@ -343,15 +322,21 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(lightingShader->Program(), "view"), 1, GL_FALSE, glm::value_ptr(camera.ViewMatrix()));
         glUniformMatrix4fv(glGetUniformLocation(lightingShader->Program(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-        glBindVertexArray(VAO);
+        glUniform1i(glGetUniformLocation(lightingShader->Program(), "useFaceNormal"), useFaceNormal);
+
         // draw flat color for each face instead of interpolating
-        if (flatColor) {
-            glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
+        if (useFaceNormal) {
+            //glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
+            glBindVertexArray(faceVAO);
+            glDrawArrays(GL_TRIANGLES, 0, numFaceVertices);
+            glBindVertexArray(0);
+        } else {
+            glBindVertexArray(avgVAO);
+            glDrawArrays(GL_TRIANGLES, 0, numAvgVertices);
+            glBindVertexArray(0);
         }
-        glDrawArrays(GL_TRIANGLES, 0, numVertices);
-        glBindVertexArray(0);
 
-
+        // draw lamp
         lampShader->Use();
 
         // pass uniform values to shader
@@ -371,8 +356,12 @@ int main()
 	}
 
 	// properly de-allocate all resources
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &faceVAO);
+    glDeleteVertexArrays(1, &avgVAO);
+    glDeleteVertexArrays(1, &lampVAO);
+    glDeleteBuffers(1, &faceVBO);
+    glDeleteBuffers(1, &avgVBO);
+    glDeleteBuffers(1, &lampVBO);
 
 	glfwTerminate();
 	return 0;
@@ -386,7 +375,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
     } else if (key == GLFW_KEY_F && action == GLFW_PRESS) {
-        flatColor = 1 - flatColor;
+        useFaceNormal = 1 - useFaceNormal;
     } else if (key >= 0 && key < 1024) {
         if (action == GLFW_PRESS) {
             keys[key] = true;
@@ -413,6 +402,49 @@ void moveCamera(GLfloat deltaTime)
     }
 }
 
+void changeLighting(GLfloat deltaTime)
+{
+    // material controls
+    if (keys[GLFW_KEY_R]) {
+        materialColor.r += COLOR_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_T]) {
+        materialColor.r -= COLOR_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_G]) {
+        materialColor.g += COLOR_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_H]) {
+        materialColor.g -= COLOR_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_B]) {
+        materialColor.b += COLOR_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_N]) {
+        materialColor.b -= COLOR_SPEED * deltaTime;
+    }
+
+    // lamp controls
+    if (keys[GLFW_KEY_UP]) {
+        lightPos.z -= LIGHT_MOVE_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_DOWN]) {
+        lightPos.z += LIGHT_MOVE_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_RIGHT]) {
+        lightPos.x += LIGHT_MOVE_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_LEFT]) {
+        lightPos.x -= LIGHT_MOVE_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_Z]) {
+        lightPos.y += LIGHT_MOVE_SPEED * deltaTime;
+    }
+    if (keys[GLFW_KEY_X]) {
+        lightPos.y -= LIGHT_MOVE_SPEED * deltaTime;
+    }
+}
+
 void mouseCallback(GLFWwindow* window, double xpos, double ypos)
 {
     static GLfloat lastX = GLfloat(screenWidth) / 2;
@@ -431,11 +463,39 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
     camera.ProcessMouseScroll(GLfloat(yoffset));
 }
 
-
 void framebufferSizeCallback(GLFWwindow* window, int width, int height)
 {
     screenWidth = width;
     screenHeight = height;
     // resize window
     glViewport(0, 0, screenWidth, screenHeight);
+}
+
+int bindData(GLuint VAO, GLuint VBO, const Obj& obj, const std::vector<Vertex>& normal)
+{
+    std::vector<VertNorm> data;
+    for (const auto& face : obj.faces) {
+        for (int i = 0; i < 3; i++) {
+            int vid = face[i];
+            data.emplace_back(obj.vertices[vid], normal[vid]);
+        }
+    }
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertNorm) * data.size(), &data.front(), GL_STATIC_DRAW);
+
+    // set vertex attribute pointers
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertNorm), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    // Normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertNorm), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
+
+    // unbind VBO & VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return int(data.size());
 }

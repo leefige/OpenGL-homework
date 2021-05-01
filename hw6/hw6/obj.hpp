@@ -11,27 +11,48 @@
 namespace cg
 {
 
-struct TriFace
+template<typename T>
+struct Vec3
 {
-	int v[3];
-	TriFace(int f0, int f1, int f2) { v[0] = f0; v[1] = f1; v[2] = f2; }
+	T v[3];
 
-	int& operator[](int idx)
+	Vec3() : v{0, 0, 0} {}
+	Vec3(T v1, T v2, T v3) : v{v1, v2, v3} {}
+	explicit Vec3(glm::vec3 vec) : v{vec.x, vec.y, vec.z} {}
+
+	Vec3<T>& operator+=(const Vec3& other)
+	{
+		v[0] += other[0];
+		v[1] += other[1];
+		v[2] += other[2];
+		return *this;
+	}
+
+	Vec3<T> operator+(const Vec3& other)
+	{
+		Vec3 res(*this);
+		return res += other;
+	}
+
+	T& operator[](int idx)
 	{
 		return v[idx];
 	}
 
-	const int& operator[](int idx) const
+	const T& operator[](int idx) const
 	{
 		return v[idx];
 	}
+
+	operator glm::vec3() const
+	{
+		return glm::vec3{v[0], v[1], v[2]};
+	}
 };
 
-struct Vertex
-{
-	GLfloat x, y, z;
-	Vertex(GLfloat x_, GLfloat y_, GLfloat z_) : x(x_), y(y_), z(z_) {}
-};
+typedef Vec3<GLfloat> Vertex;
+
+typedef Vec3<int> TriFace;
 
 class Obj
 {
@@ -68,7 +89,7 @@ std::istream& operator>>(std::istream& in, Obj& obj)
 			else if (cmd.compare("f") == 0) {
 				int f[3];
 				iss >> f[0] >> f[1] >> f[2];
-				obj.faces.emplace_back(f[0], f[1], f[2]);
+				obj.faces.emplace_back(f[0] - 1, f[1] - 1, f[2] - 1);
 			}
 			else {
 				std::cerr << "Warning: unsupported line type starting with '" << buf[0] << "'" << std::endl;
